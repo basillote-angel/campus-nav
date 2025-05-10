@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Item;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class ItemController extends Controller
 {
@@ -19,13 +22,34 @@ class ItemController extends Controller
             $request->validate([
                 'name' => 'required|string',
                 'description' => 'required|string',
+                'type' => 'required|in:lost,found',
                 'location' => 'nullable|string',
-                'date_found' => 'nullable|date',
-                'owner_name' => 'nullable|string',
-                'owner_contact' => 'nullable|string',
+                'lost_found_date' => 'nullable|date',
+                'contact_info' => 'nullable|string',
+                'image' => 'required|file|max:5120|mimes:jpg,jpeg,png'
             ]);
 
-            $item = Item::create($request->all());
+            $userId = Auth::id();
+
+            if ($request->type == 'lost') {
+                // Lost item: the authenticated user is the owner
+                $request->merge(['owner_id' => $userId]);
+            } elseif ($request->type == 'found') {
+                // Found item: the authenticated user is the finder
+                $request->merge(['finder_id' => $userId]);
+            }
+
+            $formattedDate = $request->lost_found_date 
+                ? Carbon::parse($request->lost_found_date)->format('Y-m-d H:i:s')
+                : null;
+
+            $path = $request->file('image')->store('uploads', 'public');
+            $url = Storage::url($path);
+
+            $item = Item::create(array_merge($request->all(), [
+                'image_url' => $url,
+                'lost_found_date' => $formattedDate
+            ]));
             return response()->json($item, 201);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to create item', 'message' => $e->getMessage()], 500);

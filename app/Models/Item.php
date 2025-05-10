@@ -10,12 +10,15 @@ class Item extends Model
     use HasFactory;
 
     protected $fillable = [
+        'owner_id',
+        'finder_id',
         'name',
         'description',
+        'type',
         'location',
         'status',
-        'date_found',
-        'owner_name',
-        'owner_contact',
+        'lost_found_date',
+        'contact_info',
+        'image_url',
     ];
 }

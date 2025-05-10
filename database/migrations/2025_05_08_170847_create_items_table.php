@@ -13,13 +13,16 @@ return new class extends Migration
     {
         Schema::create('items', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->onDelete('cascade');
+            $table->foreignId('finder_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->string('name');
             $table->text('description')->nullable();
             $table->enum('status', ['unclaimed', 'claimed'])->default('unclaimed');
+            $table->enum('type', ['lost', 'found']);
             $table->string('location')->nullable();
-            $table->date('date_found')->nullable();
-            $table->string('owner_name')->nullable();
-            $table->string('owner_contact')->nullable();
+            $table->date('lost_found_date')->nullable();
+            $table->string('contact_info')->nullable();
+            $table->string('image_url')->nullable();
             $table->timestamps();
         });
     }
