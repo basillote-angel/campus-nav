@@ -15,7 +15,7 @@
         <header class="w-full py-6 px-4 sm:px-6 lg:px-8 bg-white shadow-sm">
             <div class="max-w-7xl mx-auto flex justify-between items-center">
                 <div class="flex items-center">
-                    <span class="text-2xl font-bold text-sky-500">Your App</span>
+                    <span class="text-2xl font-bold text-sky-500">Campuse Nav</span>
                 </div>
                 
                 @if (Route::has('login'))
@@ -51,7 +51,7 @@
 
         <main class="flex-grow flex flex-col items-center justify-center p-6 lg:p-8">
             <div class="text-center max-w-3xl">
-                <h1 class="text-4xl sm:text-5xl font-bold text-gray-800 mb-6">Welcome to Your Application</h1>
+                <h1 class="text-4xl sm:text-5xl font-bold text-gray-800 mb-6">Welcome to Campus Nav</h1>
                 <p class="text-xl text-gray-600 mb-8">A modern application built with Laravel and styled with Tailwind CSS</p>
                 
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
