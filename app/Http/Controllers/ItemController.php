@@ -59,7 +59,7 @@ class ItemController extends Controller
     public function show($id)
     {
         try {
-            $item = Item::find($id);
+            $item = Item::with(['owner', 'finder'])->find($id);
 
             if (!$item) {
                 return response()->json(['message' => 'Item not found'], 404);

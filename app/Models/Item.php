@@ -21,4 +21,16 @@ class Item extends Model
         'contact_info',
         'image_url',
     ];
+
+    // Define relationship to the owner
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    // Define relationship to the finder
+    public function finder()
+    {
+        return $this->belongsTo(User::class, 'finder_id');
+    }
 }
