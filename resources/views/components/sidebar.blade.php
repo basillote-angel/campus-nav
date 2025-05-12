@@ -1,0 +1,30 @@
+<aside class="w-64 h-full bg-white shadow-md border-r border-gray-200">
+    <div class="p-6 border-b border-gray-200 flex items-center justify-center">
+    <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-16 w-16 scale-200">
+</div>
+    <nav class="p-4">
+        <ul class="space-y-1">
+            <li>
+                <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-100 hover:text-green-600' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
+                    <x-heroicon-o-home class="h-5 w-5 mr-3 {{ request()->routeIs('dashboard') ? 'text-green-500' : 'text-gray-500' }}" />
+                    Dashboard
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('profile') }}" class="{{ request()->routeIs('profile') ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-100 hover:text-green-600' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
+                    <x-heroicon-o-user class="h-5 w-5 mr-3 {{ request()->routeIs('profile') ? 'text-green-500' : 'text-gray-500' }}" />
+                    Profile
+                </a>
+            </li>
+        </ul>
+        <div class="pt-6 mt-6 border-t border-gray-200">
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="flex w-full items-center px-4 py-3 text-gray-700 hover:bg-gray-100 hover:text-green-600 rounded-md transition-colors duration-150 ease-in-out">
+                    <x-eos-logout class="h-5 w-5 mr-3 text-gray-500" />
+                    Logout
+                </button>
+            </form>
+        </div>
+    </nav>
+</aside>
