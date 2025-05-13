@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\Auth;
 
 class ItemController extends Controller
 {
+    public function showItemPage() {
+        return view('item');
+    }
+
     public function index()
     {
         return response()->json(Item::all(), 200);

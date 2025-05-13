@@ -9,7 +9,9 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
-    <title>My Laravel App</title>
+    <link rel="icon" href="{{ asset('images/rel-logo-icon.png') }}" type="image/png">
+
+    <title>Campus NAV</title>
 </head>
 <body class="flex h-screen">
     <x-sidebar />  <!-- Sidebar Component -->

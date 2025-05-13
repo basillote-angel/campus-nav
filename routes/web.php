@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\WebAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ItemController;
+use App\Http\Controllers\UserController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -21,6 +23,14 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Lost and found item
+    Route::get('/item', [ItemController::class, 'showItemPage'])->name('item');
+    Route::post('/item/update', [ItemController::class, 'update'])->name('item.update');
+
+    // Users
+    Route::get('/manage-users', [UserController::class, 'showManageUsers'])->name('manage-users');
+    Route::post('/item/user', [UserController::class, 'update'])->name('item.update');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');

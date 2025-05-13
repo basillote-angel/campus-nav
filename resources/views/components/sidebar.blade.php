@@ -5,14 +5,26 @@
     <nav class="p-4">
         <ul class="space-y-1">
             <li>
-                <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-100 hover:text-green-600' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
-                    <x-heroicon-o-home class="h-5 w-5 mr-3 {{ request()->routeIs('dashboard') ? 'text-green-500' : 'text-gray-500' }}" />
+                <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'bg-green-50 text-green-800' : 'text-gray-700 hover:bg-gray-100 hover:text-green-800' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
+                    <x-heroicon-o-home class="h-5 w-5 mr-3 {{ request()->routeIs('dashboard') ? 'text-green-800' : 'text-gray-500' }}" />
                     Dashboard
                 </a>
             </li>
             <li>
-                <a href="{{ route('profile') }}" class="{{ request()->routeIs('profile') ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-100 hover:text-green-600' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
-                    <x-heroicon-o-user class="h-5 w-5 mr-3 {{ request()->routeIs('profile') ? 'text-green-500' : 'text-gray-500' }}" />
+                <a href="{{ route('item') }}" class="{{ request()->routeIs('item') ? 'bg-green-50 text-green-800' : 'text-gray-700 hover:bg-gray-100 hover:text-green-800' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
+                    <x-heroicon-s-queue-list class="h-5 w-5 mr-3 {{ request()->routeIs('item') ? 'text-green-800' : 'text-gray-500' }}" />
+                    Lost & found
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('manage-users') }}" class="{{ request()->routeIs('manage-users') ? 'bg-green-50 text-green-800' : 'text-gray-700 hover:bg-gray-100 hover:text-green-800' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
+                    <x-heroicon-o-users class="h-5 w-5 mr-3 {{ request()->routeIs('manage-users') ? 'text-green-800' : 'text-gray-500' }}" />
+                    Manage Users
+                </a>
+            </li>
+            <li>
+                <a href="{{ route('profile') }}" class="{{ request()->routeIs('profile') ? 'bg-green-50 text-green-800' : 'text-gray-700 hover:bg-gray-100 hover:text-green-800' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
+                    <x-heroicon-o-user class="h-5 w-5 mr-3 {{ request()->routeIs('profile') ? 'text-green-800' : 'text-gray-500' }}" />
                     Profile
                 </a>
             </li>
@@ -20,7 +32,7 @@
         <div class="pt-6 mt-6 border-t border-gray-200">
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" class="flex w-full items-center px-4 py-3 text-gray-700 hover:bg-gray-100 hover:text-green-600 rounded-md transition-colors duration-150 ease-in-out">
+                <button type="submit" class="flex w-full items-center px-4 py-3 text-gray-700 hover:bg-gray-100 hover:text-green-800 rounded-md transition-colors duration-150 ease-in-out">
                     <x-eos-logout class="h-5 w-5 mr-3 text-gray-500" />
                     Logout
                 </button>
