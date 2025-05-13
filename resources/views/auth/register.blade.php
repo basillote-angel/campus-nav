@@ -34,7 +34,7 @@
                     id="name" 
                     name="name" 
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition-colors"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-700 focus:ring-green-600 focus:border-green-600 transition-colors"
                 >
             </div>
             
@@ -45,36 +45,56 @@
                     id="email" 
                     name="email" 
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition-colors"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-700 focus:ring-green-600 focus:border-green-600 transition-colors"
                 >
             </div>
             
             <div>
                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input 
-                    type="password" 
-                    id="password" 
-                    name="password" 
-                    required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition-colors"
-                >
+                <div class="relative">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-700 focus:ring-green-600 focus:border-green-600 transition-colors"
+                    >
+                    <button 
+                        type="button" 
+                        onclick="togglePassword('password')" 
+                        class="absolute right-2 bottom-[10px] h-6 w-6 cursor-pointer"
+                    >
+                        <x-heroicon-c-eye-slash id="eye-slash" class="text-gray-500 hidden"/>
+                        <x-heroicon-c-eye id="eye" class="text-gray-500"/>
+                    </button>
+                </div>
             </div>
             
             <div>
                 <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                <input 
-                    type="password" 
-                    id="password_confirmation" 
-                    name="password_confirmation" 
-                    required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition-colors"
-                >
+                <div class="relative">
+                    <input 
+                        type="password" 
+                        id="password_confirmation" 
+                        name="password_confirmation" 
+                        required 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-700 focus:ring-green-600 focus:border-green-600 transition-colors"
+                    >
+                    <button 
+                        type="button" 
+                        onclick="togglePassword('password_confirmation')" 
+                        class="absolute right-2 bottom-[10px] h-6 w-6 cursor-pointer"
+                    >
+                        <x-heroicon-c-eye-slash id="conf-eye-slash" class="text-gray-500 hidden"/>
+                        <x-heroicon-c-eye id="conf-eye" class="text-gray-500"/>
+                    </button>
+                </div>
             </div>
-            
+
             <div class="pt-2">
                 <button 
                     type="submit" 
-                    class="w-full py-2 px-4 bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
+                    class="w-full py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
                 >
                     Create Account
                 </button>
@@ -84,11 +104,28 @@
         <div class="mt-6 text-center">
             <p class="text-gray-600">
                 Already have an account? 
-                <a href="/login" class="text-sky-500 hover:text-sky-600 font-medium">
+                <a href="/login" class="text-green-600 hover:text-green-700 font-medium">
                     Login here
                 </a>
             </p>
         </div>
     </div>
+    <script>
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const eyeSlash = document.getElementById(inputId === 'password_confirmation' ? 'conf-eye-slash' : 'eye-slash');
+            const eye = document.getElementById(inputId === 'password_confirmation' ? 'conf-eye' : 'eye');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                eye.style.display = 'none';
+                eyeSlash.style.display = 'inline-block';
+            } else {
+                input.type = 'password';
+                eye.style.display = 'inline-block';
+                eyeSlash.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>
