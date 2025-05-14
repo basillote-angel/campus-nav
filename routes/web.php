@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\CampusMapController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -23,6 +24,10 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Campus Map
+    Route::get('/campus-map', [CampusMapController::class, 'index'])->name('campus-map');
+    Route::post('/campus-map/update', [CampusMapController::class, 'update'])->name('campus-map.update');
 
     // Lost and found item
     Route::get('/item', [ItemController::class, 'showItemPage'])->name('item');

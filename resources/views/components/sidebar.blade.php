@@ -11,9 +11,15 @@
                 </a>
             </li>
             <li>
+                <a href="{{ route('campus-map') }}" class="{{ request()->routeIs('campus-map') ? 'bg-green-50 text-green-800' : 'text-gray-700 hover:bg-gray-100 hover:text-green-800' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
+                    <x-heroicon-o-map class="h-5 w-5 mr-3 {{ request()->routeIs('campus-map') ? 'text-green-800' : 'text-gray-500' }}" />
+                    Campus Map
+                </a>
+            </li>
+            <li>
                 <a href="{{ route('item') }}" class="{{ request()->routeIs('item') ? 'bg-green-50 text-green-800' : 'text-gray-700 hover:bg-gray-100 hover:text-green-800' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
                     <x-heroicon-s-queue-list class="h-5 w-5 mr-3 {{ request()->routeIs('item') ? 'text-green-800' : 'text-gray-500' }}" />
-                    Lost & found
+                    Lost & Found
                 </a>
             </li>
             <li>
