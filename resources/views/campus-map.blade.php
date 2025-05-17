@@ -8,11 +8,11 @@
 
   <script>
     function initMap() {
-      const campusLocation = { lat: 7.3135118719068855, lng: 125.67031555532535 };
+      const campusLocation = { lat: 7.313799064647153, lng: 125.67113865781764 };
 
       // Initialize the map
       const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 20,
+        zoom: 18.5,
         center: campusLocation,
       });
 

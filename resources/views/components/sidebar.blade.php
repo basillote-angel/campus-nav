@@ -1,7 +1,7 @@
-<aside class="w-64 h-full bg-white shadow-md border-r border-gray-200">
+<aside class="w-64 h-screen bg-white shadow-md border-r border-gray-200">
     <div class="p-6 border-b border-gray-200 flex items-center justify-center">
-    <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-16 w-16 scale-200">
-</div>
+        <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-16 w-16 scale-200">
+    </div>
     <nav class="p-4">
         <ul class="space-y-1">
             <li>

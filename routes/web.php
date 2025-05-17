@@ -7,6 +7,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CampusMapController;
+use App\Http\Controllers\WebItemController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -30,8 +31,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/campus-map/update', [CampusMapController::class, 'update'])->name('campus-map.update');
 
     // Lost and found item
-    Route::get('/item', [ItemController::class, 'showItemPage'])->name('item');
-    Route::post('/item/update', [ItemController::class, 'update'])->name('item.update');
+    Route::get('/item', [WebItemController::class, 'index'])->name('item');
+    Route::post('/items', [WebItemController::class, 'store'])->name('item.store');
+    
+    Route::get('/items/{id}/edit', [WebItemController::class, 'edit'])->name('items.edit');
+    Route::put('/items/{id}', [WebItemController::class, 'update'])->name('items.update');
+    
+    Route::delete('/items/{id}', [WebItemController::class, 'destroy'])->name('items.destroy');
 
     // Users
     Route::get('/manage-users', [UserController::class, 'showManageUsers'])->name('manage-users');

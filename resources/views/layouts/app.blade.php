@@ -11,12 +11,15 @@
 
     <link rel="icon" href="{{ asset('images/rel-logo-icon.png') }}" type="image/png">
 
+    <!-- For fancy alert message -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <title>Campus NAV</title>
 </head>
-<body class="flex h-screen">
+<body class="flex h-screen w-full">
     <x-sidebar />  <!-- Sidebar Component -->
 
-    <main class="flex-1 p-6 bg-gray-100">
+    <main class="flex-1 p-6 overflow-hidden">
         @yield('content')
     </main>
 </body>
