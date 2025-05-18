@@ -19,6 +19,15 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
 
         if (Auth::attempt($credentials)) {
+            $user = Auth::user();
+
+            if ($user->role === 'student') {
+                Auth::logout(); // log them out since students shouldn't proceed here
+                return back()->withErrors([
+                    'email' => 'Students can only use our mobile application to log in. Please download the app from Google Play.'
+                ]);
+            }
+            
             return redirect('/dashboard');
         }
 

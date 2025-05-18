@@ -22,12 +22,17 @@
                     Lost & Found
                 </a>
             </li>
+            
+            {{-- Only show Manage Users if admin --}}
+            @if(auth()->check() && auth()->user()->role === 'admin')
             <li>
                 <a href="{{ route('manage-users') }}" class="{{ request()->routeIs('manage-users') ? 'bg-green-50 text-green-800' : 'text-gray-700 hover:bg-gray-100 hover:text-green-800' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
                     <x-heroicon-o-users class="h-5 w-5 mr-3 {{ request()->routeIs('manage-users') ? 'text-green-800' : 'text-gray-500' }}" />
                     Manage Users
                 </a>
             </li>
+            @endif
+
             <li>
                 <a href="{{ route('profile') }}" class="{{ request()->routeIs('profile') ? 'bg-green-50 text-green-800' : 'text-gray-700 hover:bg-gray-100 hover:text-green-800' }} flex items-center px-4 py-3 rounded-md transition-colors duration-150 ease-in-out">
                     <x-heroicon-o-user class="h-5 w-5 mr-3 {{ request()->routeIs('profile') ? 'text-green-800' : 'text-gray-500' }}" />
