@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\ItemController;
+use App\Http\Controllers\Api\ItemController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Middleware\ApiAuthMiddleware;
 
@@ -22,8 +22,4 @@ Route::middleware(['auth:sanctum', ApiAuthMiddleware::class])->group(function ()
         Route::put('/{id}', [ItemController::class, 'update']); // Update a specific item
         Route::delete('/{id}', [ItemController::class, 'destroy']); // Delete a specific item
     });
-});
-
-Route::get('/debug', function () {
-    return response()->json(['message' => 'API is working!'], 200);
 });
