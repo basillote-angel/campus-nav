@@ -24,8 +24,11 @@ Route::middleware('guest')->group(function () {
 // Authenticated Routes
 Route::middleware('auth')->group(function () {
     Route::middleware([RoleMiddleware::class . ':admin'])->group(function () {
-        Route::get('/manage-users', [UserController::class, 'showManageUsers'])->name('manage-users');
-        Route::post('/item/user', [UserController::class, 'update'])->name('item.update');
+        Route::get('/users', [UserController::class, 'index'])->name('users');
+        Route::post('/users', [UserController::class, 'store'])->name('users.store');
+        Route::get('/users/{id}/edit', [UserController::class, 'editView'])->name('users.edit-view'); // Edit view
+        Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
     });
 
     Route::middleware([RoleMiddleware::class . ':admin,staff'])->group(function () {
@@ -36,7 +39,6 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/item', [ItemController::class, 'index'])->name('item');
         Route::post('/items', [ItemController::class, 'store'])->name('item.store');
-        
         Route::get('/items/{id}/edit', [ItemController::class, 'edit'])->name('items.edit');
         Route::put('/items/{id}', [ItemController::class, 'update'])->name('items.update');
         Route::delete('/items/{id}', [ItemController::class, 'destroy'])->name('items.destroy');
