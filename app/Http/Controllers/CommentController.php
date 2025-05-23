@@ -8,14 +8,25 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class CommentController extends Controller
-{  /**
+{   
+    /**
      * Get comments for a specific item
+     * @queryParam itemId
      */
-    public function index(Item $item)
+    public function index(Request $request)
     {
-        // Eager load user data with each comment
-        $comments = $item->comments()->with('user')->latest()->get();
-        return response()->json($comments);
+        $itemId = $request->query('item_id');
+
+        $query = Comment::with('user')->orderBy('created_at', 'desc');
+
+        // If itemId is provided, filter comments by item
+        if ($itemId) {
+            $query->where('item_id', $itemId);
+        }
+
+        $comments = $query->get();
+
+        return response()->json($comments, 200);
     }
 
     /**
@@ -36,19 +47,5 @@ class CommentController extends Controller
 
         return response()->json($comment->load('user'), 201);
     }
-
-    /**
-     * Show a single comment
-     */
-    public function show(Request $request)
-    {
-       $itemId = $request->query('itemId');
-
-    $comments = Comment::where('item_id', $itemId)
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-    return response()->json($comments); // 👈 just a list, no wrapping
 }
-    }
     

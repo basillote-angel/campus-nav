@@ -15,10 +15,11 @@ Route::middleware(['auth:sanctum', ApiAuthMiddleware::class])->group(function ()
     Route::get('/user', [AuthController::class, 'userProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
     
- 
-    Route::get('/items/{id}/comments', [CommentController::class, 'index']);
-    Route::post('/comments', [CommentController::class, 'store']);
-    Route::get('/comments', [CommentController::class, 'show']);
+    // All routes starts from /comments goes here
+    Route::prefix('comments')->group(function () {
+        Route::post('/', [CommentController::class, 'store']);
+        Route::get('/', [CommentController::class, 'index']); // We can pass itemId as a query parameter
+    });
 
     // Item routes
     Route::prefix('items')->group(function () {
@@ -27,8 +28,5 @@ Route::middleware(['auth:sanctum', ApiAuthMiddleware::class])->group(function ()
         Route::get('/{id}', [ItemController::class, 'show']); // Get a specific item
         Route::put('/{id}', [ItemController::class, 'update']); // Update a specific item
         Route::delete('/{id}', [ItemController::class, 'destroy']); // Delete a specific item
-        
    });  
-
-
 });
