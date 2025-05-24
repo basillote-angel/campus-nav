@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ItemController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\CommentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Middleware\ApiAuthMiddleware;
@@ -15,6 +16,11 @@ Route::middleware(['auth:sanctum', ApiAuthMiddleware::class])->group(function ()
     Route::get('/user', [AuthController::class, 'userProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
     
+    Route::prefix('me')->group(function () {
+        Route::get('/', [ProfileController::class, 'index']);
+        Route::get('/items', [ProfileController::class, 'postedItems']);
+    });
+
     // All routes starts from /comments goes here
     Route::prefix('comments')->group(function () {
         Route::post('/', [CommentController::class, 'store']);
