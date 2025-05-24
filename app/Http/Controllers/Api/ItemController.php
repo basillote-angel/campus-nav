@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Item;
+use App\Services\AIService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -102,6 +103,33 @@ class ItemController extends Controller
 
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to update item', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function matchesItems(AIService $aiService, $id)
+    {
+        try {
+            $item = Item::find($id);
+
+            if (!$item) {
+                return response()->json(['message' => 'Item not found'], 404);
+            }
+
+            $typeFilter = $item['type'] == 'lost' ? 'found' : 'lost';
+
+            $candidateItems = Item::where('type', $typeFilter)
+                ->where('id', '!=', $item['id'])
+                ->where('status', 'unclaimed') // Exclude claimed items
+                ->get();
+            
+            $matches = [];
+            if (!$candidateItems->isEmpty()) {
+                $matches = $aiService->matchLostAndFound($item, $candidateItems->all());
+            }
+
+            return response()->json($matches, 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to fetch items', 'message' => $e->getMessage()], 500);
         }
     }
 }

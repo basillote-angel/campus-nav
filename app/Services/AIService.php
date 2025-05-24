@@ -31,7 +31,19 @@ class AIService
     ]);
 
     if ($response->successful()) {
-      return $response->json();
+      $data = $response->json();
+      $matchedItems = [];
+
+      if($data['matched_items'] && count($data['matched_items']) > 0) {
+        foreach ($data['matched_items'] as $item) {
+          $matchedItems[] = [
+            'item' => Item::with(['owner', 'finder'])->find($item['id']),
+            'score' => $item['score'] ?? null,
+          ];
+        }
+      }
+
+      return $matchedItems;
     }
 
     throw new \Exception('AI Service error: ' . $response->body());
