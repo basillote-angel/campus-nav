@@ -46,30 +46,9 @@
         <div class="bg-white p-6 w-full max-w-md rounded-lg shadow-lg">
             <h2 class="text-2xl font-bold mb-4">Add New Item</h2>
 
-            <form id="add-item-form">
+           <form id="add-item-form">
                 @csrf
 
-                <!-- Image upload field -->
-                <div class="mb-4">
-                    <input 
-                        type="file" 
-                        id="image-input" 
-                        name="image" 
-                        accept="image/*"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    />
-                </div>
-
-                <!-- Image preview container -->
-                <div class="mb-4">
-                    <div id="image-preview-container" class="relative hidden mt-2 border-2 border-dashed border-gray-300 rounded-md p-2 text-center">
-                        <img id="image-preview" class="max-h-40 mx-auto" src="#" alt="Image Preview">
-                        <button id="close-image-preview-btn" class="h-6 w-6 absolute top-2 right-2 text-gray-400 hover:text-red-500 cursor-pointer" type="button">
-                            <x-heroicon-c-x-mark />
-                        </button>
-                    </div>
-                </div>
-                
                 <div class="mb-4">
                     <input 
                         type="text" 
@@ -78,6 +57,21 @@
                         class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" 
                         required
                     />
+                </div>
+
+                <div class="mb-4">
+                    <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                        <option value="" disabled selected>Select Category</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="documents">Documents</option>
+                        <option value="accessories">Accessories</option>
+                        <option value="idOrCards">ID or Cards</option>
+                        <option value="clothing">Clothing</option>
+                        <option value="bagOrPouches">Bag or Pouches</option>
+                        <option value="personalItems">Personal Items</option>
+                        <option value="schoolSupplies">School Supplies</option>
+                        <option value="others">Others</option>
+                    </select>
                 </div>
 
                 <div class="mb-4">
@@ -104,17 +98,7 @@
                     <input 
                         type="date" 
                         name="lost_found_date"
-                        placeholder="Location" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                        required
-                    />
-                </div>
-
-                <div class="mb-4">
-                    <input 
-                        type="text" 
-                        name="contact_info"
-                        placeholder="Contact Info (phone or email)" 
+                        placeholder="Lost or Found Date" 
                         class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                         required
                     />

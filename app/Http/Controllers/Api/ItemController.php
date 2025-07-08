@@ -22,12 +22,11 @@ class ItemController extends Controller
         try {
             $request->validate([
                 'name' => 'required|string',
+                'category' => 'required|string|in:electronics,documents,accessories,idOrCards,clothing,bagOrPouches,personalItems,schoolSupplies,others',
                 'description' => 'required|string',
                 'type' => 'required|in:lost,found',
                 'location' => 'nullable|string',
                 'lost_found_date' => 'nullable|date',
-                'contact_info' => 'nullable|string',
-                'image' => 'required|file|max:5120|mimes:jpg,jpeg,png'
             ]);
 
             $userId = Auth::id();
@@ -44,11 +43,8 @@ class ItemController extends Controller
                 ? Carbon::parse($request->lost_found_date)->format('Y-m-d H:i:s')
                 : null;
 
-            $path = $request->file('image')->store('uploads', 'public');
-            $url = Storage::url($path);
-
             $item = Item::create(array_merge($request->all(), [
-                'image_url' => $url,
+                'user_id' => Auth::id(),
                 'lost_found_date' => $formattedDate
             ]));
             return response()->json($item, 201);
@@ -60,7 +56,7 @@ class ItemController extends Controller
     public function show($id)
     {
         try {
-            $item = Item::with(['owner', 'finder'])->find($id);
+           $item = Item::with(['owner', 'finder'])->find($id);
 
             if (!$item) {
                 return response()->json(['message' => 'Item not found'], 404);
@@ -81,7 +77,7 @@ class ItemController extends Controller
                 return response()->json(['message' => 'Item not found'], 404);
             }
 
-            $item->update($request->only(['name', 'description', 'status', 'location', 'date_found', 'owner_name', 'owner_contact']));
+            $item->update($request->only(['name', 'category', 'description', 'type', 'location', 'lost_found_date']));
             
             return response()->json($item, 200);;
         } catch (\Exception $e) {
@@ -89,7 +85,7 @@ class ItemController extends Controller
         }
     }
 
-    public function destroy($id)
+     public function destroy($id)
     {
         try {
             $item = Item::find($id);
@@ -104,9 +100,9 @@ class ItemController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to update item', 'message' => $e->getMessage()], 500);
         }
-    }
+    } 
 
-    public function matchesItems(AIService $aiService, $id)
+     public function matchesItems(AIService $aiService, $id)
     {
         try {
             $item = Item::find($id);

@@ -13,15 +13,14 @@ class Item extends Model
         'owner_id',
         'finder_id',
         'name',
+        'category',
         'description',
         'type',
         'location',
         'status',
         'lost_found_date',
-        'contact_info',
-        'image_url',
     ];
-
+ 
     // Define relationship to the owner
     public function owner()
     {

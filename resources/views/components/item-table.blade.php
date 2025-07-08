@@ -2,14 +2,13 @@
     <table class="w-full divide-y divide-gray-200">
         <thead class="bg-green-600">
             <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Image</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">category</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Item Name</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Description</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Type</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Location</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Contact</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-green-600 sticky right-0 z-10 shadow-md">
                     Actions
                 </th>
@@ -19,16 +18,7 @@
             @foreach ($items as $item)
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4">
-                        @if($item['image_url'])
-                            <img src="{{$item['image_url']}}" alt="Item Image" class="h-12 w-12 object-cover rounded">
-                        @else
-                            <div class="h-12 w-12 flex items-center justify-center bg-gray-200 rounded text-gray-500">
-                                <!-- Example: a simple SVG icon (a box or camera icon) -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M7 3v4m10-4v4M5 11v10h14V11M9 16h6" />
-                                </svg>
-                            </div>
-                        @endif
+                        <div class="text-sm font-medium text-gray-900">{{$item['category']}}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm font-medium text-gray-900">{{$item['name']}}</div>
@@ -63,9 +53,6 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {{$item['lost_found_date']}}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{$item['contact_information']}}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium bg-white sticky right-0 z-10 shadow-md">
                         <div class="flex items-center">

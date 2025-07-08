@@ -55,39 +55,23 @@ class ItemController extends Controller
     {
         $request->validate([
             'name' => 'required|string',
+            'category' => 'required|string|in:electronics,documents,accessories,idOrCards,clothing,bagOrPouches,personalItems,schoolSupplies,others',
             'description' => 'required|string',
             'type' => 'required|in:lost,found',
-            'status' => 'required|in:unclaimed,claimed',
             'location' => 'nullable|string',
             'lost_found_date' => 'nullable|date',
-            'contact_info' => 'nullable|string',
-            'image' => 'nullable|file|max:5120|mimes:jpg,jpeg,png'
         ]);
 
         $item = Item::findOrFail($id);
 
         $data = $request->only([
             'name',
+            'category',
             'description',
             'type',
-            'status',
             'location',
             'lost_found_date',
-            'contact_info',
         ]);
-
-        // If a new image is uploaded, replace the old one
-        if ($request->hasFile('image')) {
-            // Delete old image
-            if ($item->image_url) {
-                $oldPath = str_replace('/storage/', 'public/', $item->image_url);
-                Storage::delete($oldPath);
-            }
-
-            // Store new image
-            $path = $request->file('image')->store('uploads', 'public');
-            $data['image_url'] = Storage::url($path);
-        }
 
         $item->update($data);
 
@@ -101,12 +85,6 @@ class ItemController extends Controller
     {
         $item = Item::findOrFail($id);
         
-        // If it has an image, delete it
-        if ($item->image_url) {
-            $oldPath = str_replace('/storage/', 'public/', $item->image_url);
-            Storage::delete($oldPath);
-        }
-        
         $item->delete();
 
         session()->flash('success', 'Item deleted successfully.');
@@ -116,12 +94,11 @@ class ItemController extends Controller
     public function store(Request $request) {
         $request->validate([
             'name' => 'required|string',
+            'category' => 'required|string|in:electronics,documents,accessories,idOrCards,clothing,bagOrPouches,personalItems,schoolSupplies,others',
             'description' => 'required|string',
             'type' => 'required|in:lost,found',
             'location' => 'nullable|string',
             'lost_found_date' => 'nullable|date',
-            'contact_info' => 'nullable|string',
-            'image' => 'nullable|file|max:5120|mimes:jpg,jpeg,png'
         ]);
 
         $userId = Auth::id();
@@ -139,14 +116,8 @@ class ItemController extends Controller
             : null;
 
         $url = null;
-
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('uploads', 'public');
-            $url = Storage::url($path);
-        }
         
         $item = Item::create(array_merge($request->all(), [
-            'image_url' => $url,
             'lost_found_date' => $formattedDate
         ]));
 
