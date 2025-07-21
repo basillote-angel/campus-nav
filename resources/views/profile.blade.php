@@ -6,7 +6,7 @@
 
     {{-- Profile Card --}}
     <div class="bg-white rounded-lg shadow p-6 mb-6 flex items-center space-x-6">
-        <div class="text-4xl bg-green-100 w-20 h-20 rounded-full flex items-center justify-center">
+        <div class="text-4xl bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center">
             👤
         </div>
         <div>
@@ -41,7 +41,7 @@
         </div>
 
         <div class="mt-4">
-            <button class="flex items-center text-sm text-green-600 hover:underline">
+            <button class="flex items-center text-sm text-blue-600 hover:underline">
                 🔒 <span class="ml-1">Change Password</span>
             </button>
         </div>

@@ -1,12 +1,12 @@
 <div class="w-full overflow-x-auto shadow-md rounded-lg">
     <table class="w-full divide-y divide-gray-200">
-        <thead class="bg-green-600">
+        <thead class="bg-blue-600">
             <tr>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-green-600 sticky right-0 z-10 shadow-md">
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider bg-blue-600 sticky right-0 z-10 shadow-md">
                     Actions
                 </th>
             </tr>
@@ -30,20 +30,20 @@
                                 {{ strtoupper($user['role'])}}
                             </span>
                         @elseif($user['role'] == 'admin')
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                                 {{ strtoupper($user['role'])}}
                             </span>
                         @endif
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <!-- This well be hardcoded for now -->
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                             Active
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium bg-white sticky right-0 z-10 shadow-md">
                         <div class="flex items-center">
-                            <a href="{{ route('users.edit-view', $user['id']) }}" class="text-green-600 rounded text-xs mr-2">
+                            <a href="{{ route('users.edit-view', $user['id']) }}" class="text-blue-600 rounded text-xs mr-2">
                                 <x-heroicon-m-pencil-square class="h-5 w-5"/>
                             </a>
                             <form id="delete-form-{{ $user['id'] }}" method="POST" action="{{ route('users.destroy', $user['id']) }}" class="inline-block">

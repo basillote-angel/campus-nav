@@ -15,7 +15,7 @@
         </div>
 
         @if (session('success'))
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-600 p-4 mb-6 rounded" role="alert">
+            <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-600 p-4 mb-6 rounded" role="alert">
                 <p>{{ session('success') }}</p>
             </div>
         @endif
@@ -35,7 +35,7 @@
                     id="email" 
                     name="email" 
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-600 focus:ring-green-600 focus:border-green-600 transition-colors"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-blue-600 focus:ring-blue-600 focus:border-blue-600 transition-colors"
                 >
             </div>
             
@@ -48,7 +48,7 @@
                         id="password" 
                         name="password" 
                         required 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-600 focus:ring-green-600 focus:border-green-600 transition-colors"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-blue-600 focus:ring-blue-600 focus:border-blue-600 transition-colors"
                     >
                     <button 
                         type="button" 
@@ -64,7 +64,7 @@
             <div>
                 <button 
                     type="submit" 
-                    class="w-full py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
+                    class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
                 >
                     Sign In
                 </button>
@@ -74,7 +74,7 @@
         <div class="mt-6 text-center">
             <p class="text-gray-600">
                 Don't have an account? 
-                <a href="/register" class="text-green-600 hover:text-green-700 font-medium">
+                <a href="/register" class="text-blue-600 hover:text-blue-700 font-medium">
                     Register here
                 </a>
             </p>

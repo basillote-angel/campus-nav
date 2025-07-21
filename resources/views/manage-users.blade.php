@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
-    <h1 class="text-3xl font-bold text-green-800 mb-6">Manage Users</h1>
+    <h1 class="text-3xl font-bold text-blue-800 mb-6">Manage Users</h1>
     
     <button 
         id="add-user-btn"
-        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition">
+        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-gblue-500 focus:ring-opacity-50 transition">
         + Add New User
     </button>
 
@@ -16,12 +16,12 @@
             id="search-input"
             value="{{ request()->search }}" 
             placeholder="Search user by name or email..." 
-            class="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            class="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
 
         <select 
             id="role-select"
-            class="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            class="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
             <option value="">All Roles</option>
             <option value="student" {{ request()->role == 'student' ? 'selected' : '' }}>Student</option>
@@ -47,7 +47,7 @@
                         type="text" 
                         name="name"
                         placeholder="Name" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
                         required
                     />
                 </div>
@@ -57,7 +57,7 @@
                         type="email" 
                         name="email"
                         placeholder="example@gmail.com" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                     />
                 </div>
@@ -65,7 +65,7 @@
                 <div class="mb-4">
                     <select 
                         name="role" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                         <option value="student">Student</option>
                         <option value="staff">Staff</option>
@@ -78,7 +78,7 @@
                         type="password" 
                         name="password"
                         placeholder="Password" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                     />
                 </div>
@@ -88,14 +88,14 @@
                         id="confirm_password"
                         type="password" 
                         placeholder="Confirm Password" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gblue-500"
                         required
                     />
                 </div>
 
                 <div id="form-errors" class="mb-4 text-red-600 text-sm space-y-1"></div>
 
-                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded w-full">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded w-full">
                     Submit
                 </button>
             </form>

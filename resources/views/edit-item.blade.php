@@ -3,14 +3,14 @@
 @section('content')
 <div class="max-w-xl mx-auto bg-white p-6 rounded-md mt-10">
 	<div class="flex items-center  mb-4">
-		<a href="{{ route('item') }}" class="text-gray-600 hover:text-green-600 rounded text-xs mr-2">
+		<a href="{{ route('item') }}" class="text-gray-600 hover:text-blue-600 rounded text-xs mr-2">
 			<x-heroicon-o-arrow-small-left class="h-8 w-8"/>
 		</a>
 		<h2 class="text-2xl font-bold">Edit Item</h2>
 	</div>
 
     @if(session('success'))
-        <div class="bg-green-100 text-green-800 p-2 rounded mb-4">
+        <div class="bg-blue-100 text-blue-800 p-2 rounded mb-4">
             {{ session('success') }}
         </div>
     @endif
@@ -25,13 +25,13 @@
                 name="name"
                 value="{{ $item->name }}"
                 placeholder="Item Name" 
-                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" 
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
                 required
             />
         </div>
 
         <div class="mb-4">
-            <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" required>
+            <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                 <option value="" disabled>Select Category</option>
                 <option value="electronics" {{ $item->category == 'electronics' ? 'selected' : '' }}>Electronics</option>
                 <option value="documents" {{ $item->category == 'documents' ? 'selected' : '' }}>Documents</option>
@@ -49,7 +49,7 @@
             <textarea 
                 name="description"
                 placeholder="Description"
-                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
             >{{ $item->description }}</textarea>
         </div>
@@ -60,7 +60,7 @@
                 name="location"
                 value="{{ $item->location }}"
                 placeholder="Location" 
-                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
             />
         </div>
@@ -70,26 +70,26 @@
                 type="date" 
                 name="lost_found_date"
                 value="{{ $item->lost_found_date }}"
-                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
             />
         </div>
 
         <div class="mb-4">
-            <select name="type" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+            <select name="type" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="lost" {{ $item->type == 'lost' ? 'selected' : '' }}>Lost</option>
                 <option value="found" {{ $item->type == 'found' ? 'selected' : '' }}>Found</option>
             </select>
         </div>
 
 		<div class="mb-4">
-            <select name="status" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+            <select name="status" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="claimed" {{ $item->status == 'claimed' ? 'selected' : '' }}>Claimed</option>
                 <option value="unclaimed" {{ $item->status == 'unclaimed' ? 'selected' : '' }}>Unclaimed</option>
             </select>
         </div>
 
-        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded w-full">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded w-full">
             Save Changes
         </button>
     </form>

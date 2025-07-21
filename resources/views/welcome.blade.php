@@ -23,14 +23,14 @@
                         @auth
                             <a
                                 href="{{ url('/dashboard') }}"
-                                class="px-5 py-2 bg-green-600 hover:bg-green-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                                class="px-5 py-2 blue-600 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                             >
                                 Dashboard
                             </a>
                         @else
                             <a
                                 href="{{ route('login') }}"
-                                class="px-5 py-2 text-gray-700 hover:text-green-600 font-medium transition-colors"
+                                class="px-5 py-2 text-gray-700 hover:text-bluen-600 font-medium transition-colors"
                             >
                                 Log in
                             </a>
@@ -38,7 +38,7 @@
                             @if (Route::has('register'))
                                 <a
                                     href="{{ route('register') }}"
-                                    class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                                 >
                                     Register
                                 </a>
@@ -61,20 +61,20 @@
                     @guest
                         <a 
                             href="{{ route('register') }}" 
-                            class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                         >
                             Get Started
                         </a>
                         <a 
                             href="{{ route('login') }}" 
-                            class="px-6 py-3 border border-gray-300 hover:border-green-500 text-gray-700 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                            class="px-6 py-3 border border-gray-300 hover:border-blue-500 text-gray-700 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                         >
                             Sign In
                         </a>
                     @else
                         <a 
                             href="{{ url('/dashboard') }}" 
-                            class="px-6 py-3 bg-green-600 hover:bg-green-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                            class="px-6 py-3 bg-blue-600 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                         >
                             Go to Dashboard
                         </a>

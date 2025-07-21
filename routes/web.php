@@ -35,7 +35,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/campus-map', [CampusMapController::class, 'index'])->name('campus-map');
-        Route::post('/campus-map/update', [CampusMapController::class, 'update'])->name('campus-map.update');
+        Route::post('/buildings', [CampusMapController::class, 'store'])->name('buildings.store');
+        Route::put('/buildings/{building}', [CampusMapController::class, 'update'])->name('buildings.update');
+        Route::delete('/buildings/{building}', [CampusMapController::class, 'destroy'])->name('buildings.destroy');
+        Route::get('/buildings/{building}', [CampusMapController::class, 'show'])->name('buildings.show');
+
 
         Route::get('/item', [ItemController::class, 'index'])->name('item');
         Route::post('/items', [ItemController::class, 'store'])->name('item.store');
@@ -46,5 +50,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
         Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+        
+        Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+        Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+        Route::get('/speed-test', function () {
+            return 'OK';
+        });
+
     });
 });

@@ -22,4 +22,78 @@
     {{-- Lost Items --}}
     <x-dashboard-card label="Lost Items" value="{{ $lostItems }}" iconPath="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 </div>
+<div class="mt-12 max-w-4xl mx-auto bg-white p-6 rounded-lg shadow border border-gray-200">
+    <h2 class="text-xl font-bold text-gray-700 mb-4">Item Status Overview</h2>
+    <canvas id="itemBarChart" height="100"></canvas>
+</div>
+
+ <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('itemBarChart').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Lost Items', 'Found Items', 'Claimed Items', 'Unclaimed Items'],
+            datasets: [{
+                label: 'Number of Items',
+                data: [
+                    {{ $lostItems }},
+                    {{ $foundItems }},
+                    {{ $claimedItems }},
+                    {{ $unclaimedItems }}
+                ],
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.7)',   // red-500
+                    'rgba(59, 130, 246, 0.7)',  // blue-500
+                    'rgba(16, 185, 129, 0.7)',  // emerald-500
+                    'rgba(245, 158, 11, 0.7)'   // amber-500
+                ],
+                borderColor: [
+                    'rgba(239, 68, 68, 1)',
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(245, 158, 11, 1)'
+                ],
+                borderWidth: 2,
+                borderRadius: 8,
+                barPercentage: 0.6
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#374151',
+                        font: {
+                            size: 14
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: '#4B5563',
+                        stepSize: 1
+                    },
+                    grid: {
+                        color: '#E5E7EB'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: '#4B5563'
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+</script>
+
 @endsection

@@ -34,7 +34,7 @@
                     id="name" 
                     name="name" 
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-700 focus:ring-green-600 focus:border-green-600 transition-colors"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-blue-700 focus:ring-blue-600 focus:border-blue-600 transition-colors"
                 >
             </div>
             
@@ -45,7 +45,7 @@
                     id="email" 
                     name="email" 
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-700 focus:ring-green-600 focus:border-green-600 transition-colors"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-blue-700 focus:ring-blue-600 focus:border-blue-600 transition-colors"
                 >
             </div>
             
@@ -57,7 +57,7 @@
                         id="password" 
                         name="password" 
                         required 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-700 focus:ring-green-600 focus:border-green-600 transition-colors"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-blue-700 focus:ring-blue-600 focus:border-blue-600 transition-colors"
                     >
                     <button 
                         type="button" 
@@ -78,7 +78,7 @@
                         id="password_confirmation" 
                         name="password_confirmation" 
                         required 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-green-700 focus:ring-green-600 focus:border-green-600 transition-colors"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-blue-700 focus:ring-blue-600 focus:border-blue-600 transition-colors"
                     >
                     <button 
                         type="button" 
@@ -94,7 +94,7 @@
             <div class="pt-2">
                 <button 
                     type="submit" 
-                    class="w-full py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
+                    class="w-full py-2 px-4 bg-blue-600 hover:bg-v-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
                 >
                     Create Account
                 </button>
@@ -104,7 +104,7 @@
         <div class="mt-6 text-center">
             <p class="text-gray-600">
                 Already have an account? 
-                <a href="/login" class="text-green-600 hover:text-green-700 font-medium">
+                <a href="/login" class="text-blue-600 hover:text-blue-700 font-medium">
                     Login here
                 </a>
             </p>
