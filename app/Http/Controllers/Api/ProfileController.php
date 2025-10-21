@@ -36,7 +36,7 @@ class ProfileController extends Controller
             return response()->json([], 200);
         }
         
-        $postedItemsIds = $postedItems->pluck('id');
+        $postedItemsIds = $postedItems->pluck('id')->all();
 
         $lostItems = Item::where('type', 'lost')
             ->whereNotIn('id', $postedItemsIds) // Exclude user posted items
@@ -51,19 +51,23 @@ class ProfileController extends Controller
             ->all();
         
         foreach ($postedItems as $postedItem) {
-            $matchedItem = [
+            $postedItem->matchedItem = [
                 'highest_best' => null,
                 'lower_best' => null,
             ];
 
-            if ($postedItem->type == 'lost' && count($foundItems) > 0) {
-                $matchedItem = $aiService->matchBestLostAndFound($postedItem, $foundItems);
-
-            } elseif ($postedItem->type == 'found' && count($lostItems) > 0) {
-                $matchedItem = $aiService->matchBestLostAndFound($postedItem, $lostItems);
+            try {
+                if ($postedItem->type == 'lost' && count($foundItems) > 0) {
+                    $postedItem->matchedItem = $aiService->matchBestLostAndFound($postedItem, $foundItems);
+                } elseif ($postedItem->type == 'found' && count($lostItems) > 0) {
+                    $postedItem->matchedItem = $aiService->matchBestLostAndFound($postedItem, $lostItems);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('AI_MATCH_PROFILE_FAILED', [
+                    'itemId' => $postedItem->id,
+                    'message' => $e->getMessage(),
+                ]);
             }
-            
-            $postedItem->matchedItem = $matchedItem;
         }
 
         return response()->json($postedItems, 200);

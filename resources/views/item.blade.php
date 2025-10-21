@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+<div class="min-h-full">
     <h1 class="text-3xl font-bold text-blue-800 mb-6">Lost and Found Items</h1>
     
     <button 
@@ -42,8 +43,8 @@
     </div>
 
     <!-- Create Modal -->
-    <div id="add-item-modal" class="absolute top-0 left-0 w-full h-screen overflow-y-auto bg-black/50 hidden items-center justify-center z-50">
-        <div class="bg-white p-6 w-full max-w-md rounded-lg shadow-lg">
+    <div id="add-item-modal" class="fixed top-0 left-0 w-full h-screen overflow-y-auto bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white p-6 w-full max-w-md rounded-lg shadow-lg my-8">
             <h2 class="text-2xl font-bold mb-4">Add New Item</h2>
 
            <form id="add-item-form">

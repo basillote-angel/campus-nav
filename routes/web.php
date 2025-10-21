@@ -7,7 +7,11 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CampusMapController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Middleware\RoleMiddleware;
+use App\Http\Controllers\Admin\MatchQueueController;
+use App\Http\Controllers\Admin\ClaimsController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -29,17 +33,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/users/{id}/edit', [UserController::class, 'editView'])->name('users.edit-view'); // Edit view
         Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
+        
+        // Notifications routes for admin
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
+        Route::post('/notifications/{id}/approve', [NotificationController::class, 'approve'])->name('notifications.approve');
+        Route::post('/notifications/{id}/reject', [NotificationController::class, 'reject'])->name('notifications.reject');
     });
 
     Route::middleware([RoleMiddleware::class . ':admin,staff'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/campus-map', [CampusMapController::class, 'index'])->name('campus-map');
-        Route::post('/buildings', [CampusMapController::class, 'store'])->name('buildings.store');
-        Route::put('/buildings/{building}', [CampusMapController::class, 'update'])->name('buildings.update');
-        Route::delete('/buildings/{building}', [CampusMapController::class, 'destroy'])->name('buildings.destroy');
-        Route::get('/buildings/{building}', [CampusMapController::class, 'show'])->name('buildings.show');
-
 
         Route::get('/item', [ItemController::class, 'index'])->name('item');
         Route::post('/items', [ItemController::class, 'store'])->name('item.store');
@@ -54,9 +58,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
         Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
-        Route::get('/speed-test', function () {
-            return 'OK';
-        });
+    });
 
+    // Admin matches queue (admin + staff)
+    Route::middleware([RoleMiddleware::class . ':admin,staff'])->group(function () {
+        Route::get('/admin/matches', [MatchQueueController::class, 'index'])->name('admin.matches.index');
+        Route::get('/admin/claims', [ClaimsController::class, 'index'])->name('admin.claims.index');
+        Route::post('/admin/claims/{id}/approve', [ClaimsController::class, 'approve'])->name('admin.claims.approve');
+        Route::post('/admin/claims/{id}/reject', [ClaimsController::class, 'reject'])->name('admin.claims.reject');
     });
 });

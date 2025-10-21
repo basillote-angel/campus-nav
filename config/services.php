@@ -39,4 +39,9 @@ return [
         'base_url' => env('AI_SERVICE_URL'),
         'api_key' => env('AI_SERVICE_API_KEY'),
     ],    
+    'navistfind_ai' => [
+        'base_url' => env('AI_BASE_URL', env('AI_SERVICE_URL')),
+        'top_k' => (int) env('AI_TOP_K', 10),
+        'threshold' => (float) env('AI_THRESHOLD', 0.6),
+    ],
 ];

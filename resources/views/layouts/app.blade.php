@@ -19,7 +19,7 @@
 <body class="flex h-screen w-full">
     <x-sidebar />  <!-- Sidebar Component -->
 
-    <main class="flex-1 p-6 overflow-hidden">
+    <main class="flex-1 p-6 overflow-y-auto">
         @yield('content')
     </main>
 </body>

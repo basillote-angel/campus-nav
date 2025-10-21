@@ -9,10 +9,14 @@ class AIService
 {
   protected $baseUrl;
   protected $apiKey;
+  protected $topK;
+  protected $threshold;
 
   public function __construct() {
-    $this->baseUrl = config('services.ai_service.base_url');
+    $this->baseUrl = config('services.navistfind_ai.base_url', config('services.ai_service.base_url'));
     $this->apiKey = config('services.ai_service.api_key');
+    $this->topK = config('services.navistfind_ai.top_k', 10);
+    $this->threshold = config('services.navistfind_ai.threshold', 0.6);
   }
 
   /**
@@ -28,6 +32,8 @@ class AIService
     ])->post($this->baseUrl . '/v1/match-items', [
       'reference_item' => $referenceItem,
       'candidate_items' => $candidateItems,
+      'top_k' => $this->topK,
+      'threshold' => $this->threshold,
     ]);
 
     if ($response->successful()) {
@@ -62,6 +68,8 @@ class AIService
     ])->post($this->baseUrl . '/v1/match-items/best', [
       'reference_item' => $referenceItem,
       'candidate_items' => $candidateItems,
+      'top_k' => $this->topK,
+      'threshold' => $this->threshold,
     ]);
 
     if ($response->successful()) {
