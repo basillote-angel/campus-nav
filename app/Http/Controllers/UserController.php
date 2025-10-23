@@ -11,9 +11,11 @@ class UserController extends Controller
     public function index(Request $request) {
         $query = User::query();
 
-        // Apply filters
+        // Apply filters (default to admin if not specified)
         if ($request->filled('role')) {
             $query->where('role', $request->role);
+        } else {
+            $query->where('role', 'admin');
         }
 
         if ($request->filled('search')) {
@@ -37,15 +39,14 @@ class UserController extends Controller
     public function store(Request $request) {
         $request->validate([
             'name' => 'required|string',
-            'email' => 'required|string',
-            'role' => 'required|in:student,staff,admin',
+            'email' => 'required|email',
             'password' => 'required|string',
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'role' => $request->role,
+            'role' => 'admin',
             'password' => Hash::make($request->password),
         ]);
 

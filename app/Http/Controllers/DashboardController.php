@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 use App\Models\User;
-use App\Models\Item;
+use App\Models\LostItem;
+use App\Models\FoundItem;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -12,17 +13,17 @@ class DashboardController extends Controller
         // Total registered users
         $totalUsers = User::count();
 
-        // Claimed items (where status = 'claimed')
-        $claimedItems = Item::where('status', 'claimed')->count();
+        // Returned items
+        $claimedItems = FoundItem::where('status', 'returned')->count();
 
-        // Unclaimed items (where status = 'unclaim')
-        $unclaimedItems = Item::where('status', 'unclaimed')->count();
+        // Unclaimed found items
+        $unclaimedItems = FoundItem::where('status', 'unclaimed')->count();
 
-        // Found items (where type = 'found')
-        $foundItems = Item::where('type', 'found')->count();
+        // Found items
+        $foundItems = FoundItem::count();
 
-        // Lost items (where type = 'lost')
-        $lostItems = Item::where('type', 'lost')->count();
+        // Lost items
+        $lostItems = LostItem::count();
 
         // Match items (no match available for now, so 0)
         $matchedItems = 0;

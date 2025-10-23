@@ -2,7 +2,17 @@
 
 @section('content')
 <div class="min-h-full">
-    <h1 class="text-3xl font-bold text-blue-800 mb-6">Manage Users</h1>
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold text-blue-800">Manage Users</h1>
+        <div class="flex items-center space-x-3">
+            <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                {{ Auth::user()->name }}
+            </div>
+        </div>
+    </div>
     
     <button 
         id="add-user-btn"
@@ -10,7 +20,7 @@
         + Add New User
     </button>
 
-    <!-- Filters and Search -->
+    <!-- Search -->
     <div class="flex space-x-2 mb-4">
         <input 
             type="text" 
@@ -19,16 +29,6 @@
             placeholder="Search user by name or email..." 
             class="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
-
-        <select 
-            id="role-select"
-            class="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-            <option value="">All Roles</option>
-            <option value="student" {{ request()->role == 'student' ? 'selected' : '' }}>Student</option>
-            <option value="staff" {{ request()->role == 'staff' ? 'selected' : '' }}>Staff</option>
-            <option value="admin" {{ request()->role == 'admin' ? 'selected' : '' }}>Admin</option>
-        </select>
     </div>
     
     <!-- Table -->
@@ -63,15 +63,7 @@
                     />
                 </div>
 
-                <div class="mb-4">
-                    <select 
-                        name="role" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="student">Student</option>
-                        <option value="staff">Staff</option>
-                    </select>
-                </div>
+                <input type="hidden" name="role" value="admin" />
 
                 <div class="mb-4">
                     <input 
@@ -103,10 +95,30 @@
         </div>
     </div>
 
+    @if(session('success'))
+    <script>
+        window.__toastShownAt = window.__toastShownAt || 0;
+        function showOnceToast(opts){
+            const now = Date.now();
+            if (now - window.__toastShownAt < 1000) return;
+            window.__toastShownAt = now;
+            Swal.fire(Object.assign({
+                icon: 'success',
+                position: 'center',
+                showConfirmButton: false,
+                timer: 1600,
+                timerProgressBar: true,
+            }, opts));
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            showOnceToast({ title: @json(session('success')) });
+        });
+    </script>
+    @endif
+
     <script>
         // Search, Filters, and table
         const searchInput = document.getElementById('search-input');
-        const roleSelect = document.getElementById('role-select');
         const usersTable = document.getElementById('users-table');
 
         // For modal
@@ -125,10 +137,9 @@
         // Fetch Data
         const fetchUsers = () => {
             const search = searchInput.value;
-            const role = roleSelect.value;
 
             // Build the query string
-            const query = new URLSearchParams({ search, role }).toString();
+            const query = new URLSearchParams({ search }).toString();
 
             // Send AJAX request
             fetch(`{{ route('users') }}?${query}`, {
@@ -145,7 +156,7 @@
 
         // Event Listeners
         searchInput.addEventListener('input', () => debounce(fetchUsers));
-        roleSelect.addEventListener('change', fetchUsers);
+        
 
         addUserButton.addEventListener('click', () => {
             addUserModal.classList.toggle('hidden');
@@ -190,6 +201,11 @@
                     addUserForm.reset();
                     // Refresh items list
                     fetchUsers();
+                    if (typeof showOnceToast === 'function') {
+                        showOnceToast({ title: 'User added successfully.' });
+                    } else {
+                        Swal.fire({ icon: 'success', title: 'User added successfully.', position: 'center', showConfirmButton: false, timer: 1600, timerProgressBar: true });
+                    }
                 } else {
                     errorContainer.innerHTML = '<p>Failed to create user.</p>';
                 }

@@ -22,26 +22,20 @@
         <div class="mb-4">
             <input 
                 type="text" 
-                name="name"
+                name="title"
                 value="{{ $item->name }}"
-                placeholder="Item Name" 
+                placeholder="Item Title" 
                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
                 required
             />
         </div>
 
         <div class="mb-4">
-            <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+            <select name="category_id" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                 <option value="" disabled>Select Category</option>
-                <option value="electronics" {{ $item->category == 'electronics' ? 'selected' : '' }}>Electronics</option>
-                <option value="documents" {{ $item->category == 'documents' ? 'selected' : '' }}>Documents</option>
-                <option value="accessories" {{ $item->category == 'accessories' ? 'selected' : '' }}>Accessories</option>
-                <option value="idOrCards" {{ $item->category == 'idOrCards' ? 'selected' : '' }}>ID or Cards</option>
-                <option value="clothing" {{ $item->category == 'clothing' ? 'selected' : '' }}>Clothing</option>
-                <option value="bagOrPouches" {{ $item->category == 'bagOrPouches' ? 'selected' : '' }}>Bag or Pouches</option>
-                <option value="personalItems" {{ $item->category == 'personalItems' ? 'selected' : '' }}>Personal Items</option>
-                <option value="schoolSupplies" {{ $item->category == 'schoolSupplies' ? 'selected' : '' }}>School Supplies</option>
-                <option value="others" {{ $item->category == 'others' ? 'selected' : '' }}>Others</option>
+                @foreach($categories as $cat)
+                    <option value="{{ $cat->id }}" {{ (int)$selectedCategoryId === (int)$cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
+                @endforeach
             </select>
         </div>
 
@@ -68,15 +62,16 @@
         <div class="mb-4">
             <input 
                 type="date" 
-                name="lost_found_date"
+                name="date"
                 value="{{ $item->lost_found_date }}"
                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
             />
         </div>
 
         <div class="mb-4">
-            <select name="type" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="hidden" name="type" value="{{ $item->type }}" />
+            <input type="hidden" name="originalType" value="{{ $item->type }}" />
+            <select name="type" disabled class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100 text-gray-600">
                 <option value="lost" {{ $item->type == 'lost' ? 'selected' : '' }}>Lost</option>
                 <option value="found" {{ $item->type == 'found' ? 'selected' : '' }}>Found</option>
             </select>
@@ -84,8 +79,15 @@
 
 		<div class="mb-4">
             <select name="status" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="claimed" {{ $item->status == 'claimed' ? 'selected' : '' }}>Claimed</option>
-                <option value="unclaimed" {{ $item->status == 'unclaimed' ? 'selected' : '' }}>Unclaimed</option>
+                @if($item->type === 'lost')
+                    <option value="open" {{ $item->status == 'open' ? 'selected' : '' }}>Open</option>
+                    <option value="matched" {{ $item->status == 'matched' ? 'selected' : '' }}>Matched</option>
+                    <option value="closed" {{ $item->status == 'closed' ? 'selected' : '' }}>Closed</option>
+                @else
+                    <option value="unclaimed" {{ $item->status == 'unclaimed' ? 'selected' : '' }}>Unclaimed</option>
+                    <option value="matched" {{ $item->status == 'matched' ? 'selected' : '' }}>Matched</option>
+                    <option value="returned" {{ $item->status == 'returned' ? 'selected' : '' }}>Returned</option>
+                @endif
             </select>
         </div>
 

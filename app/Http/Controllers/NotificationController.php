@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Item;
+use App\Models\FoundItem;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -13,18 +13,18 @@ class NotificationController extends Controller
     public function index()
     {
         // Get statistics for the dashboard
-        $pendingCount = Item::where('status', 'pending_approval')->count();
-        $approvedToday = Item::where('status', 'claimed')
+        $pendingCount = FoundItem::where('status', 'matched')->count();
+        $approvedToday = FoundItem::where('status', 'returned')
             ->whereDate('updated_at', Carbon::today())
             ->count();
-        $rejectedToday = Item::where('status', 'rejected')
+        $rejectedToday = FoundItem::where('status', 'unclaimed')
             ->whereDate('updated_at', Carbon::today())
             ->count();
-        $totalClaims = Item::whereIn('status', ['pending_approval', 'claimed', 'rejected'])->count();
+        $totalClaims = FoundItem::whereIn('status', ['matched', 'returned', 'unclaimed'])->count();
 
         // Get all items that need admin attention (pending approval, claimed, rejected)
-        $notifications = Item::with(['user', 'claimedBy'])
-            ->whereIn('status', ['pending_approval', 'claimed', 'rejected'])
+        $notifications = FoundItem::with(['user', 'claimedBy'])
+            ->whereIn('status', ['matched', 'returned', 'unclaimed'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -36,10 +36,10 @@ class NotificationController extends Controller
         try {
             DB::beginTransaction();
 
-            $item = Item::findOrFail($id);
+            $item = FoundItem::findOrFail($id);
             
             // Check if item is in pending approval status
-            if ($item->status !== 'pending_approval') {
+            if ($item->status !== 'matched') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Item is not in pending approval status'
@@ -48,7 +48,7 @@ class NotificationController extends Controller
 
             // Update item status to claimed
             $item->update([
-                'status' => 'claimed',
+                'status' => 'returned',
                 'approved_at' => Carbon::now(),
                 'approved_by' => auth()->id()
             ]);
@@ -77,10 +77,10 @@ class NotificationController extends Controller
         try {
             DB::beginTransaction();
 
-            $item = Item::findOrFail($id);
+            $item = FoundItem::findOrFail($id);
             
             // Check if item is in pending approval status
-            if ($item->status !== 'pending_approval') {
+            if ($item->status !== 'matched') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Item is not in pending approval status'
@@ -89,7 +89,7 @@ class NotificationController extends Controller
 
             // Update item status to rejected
             $item->update([
-                'status' => 'rejected',
+                'status' => 'unclaimed',
                 'rejected_at' => Carbon::now(),
                 'rejected_by' => auth()->id(),
                 'rejection_reason' => $request->input('reason', 'Claim rejected by admin')
@@ -116,8 +116,8 @@ class NotificationController extends Controller
 
     public function getNotifications()
     {
-        $notifications = Item::with(['user', 'claimedBy'])
-            ->whereIn('status', ['pending_approval', 'claimed', 'rejected'])
+        $notifications = FoundItem::with(['user', 'claimedBy'])
+            ->whereIn('status', ['matched', 'returned', 'unclaimed'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($item) {
@@ -128,14 +128,14 @@ class NotificationController extends Controller
                     'message' => $this->getNotificationMessage($item),
                     'status' => $item->status,
                     'created_at' => $item->created_at->diffForHumans(),
-                    'item_name' => $item->name,
-                    'item_category' => $item->category,
+                    'item_name' => $item->title,
+                    'item_category' => optional($item->category)->name,
                     'claimant_name' => $item->claimedBy ? $item->claimedBy->name : 'Unknown',
                     'claimant_email' => $item->claimedBy ? $item->claimedBy->email : 'Unknown',
                     'claim_date' => $item->claimed_at ? Carbon::parse($item->claimed_at)->format('M d, Y \a\t g:i A') : null,
                     'claimant_message' => $item->claim_message ?? 'No message provided',
-                    'can_approve' => $item->status === 'pending_approval',
-                    'can_reject' => $item->status === 'pending_approval',
+                    'can_approve' => $item->status === 'matched',
+                    'can_reject' => $item->status === 'matched',
                 ];
             });
 
@@ -145,11 +145,11 @@ class NotificationController extends Controller
     private function getNotificationType($item)
     {
         switch ($item->status) {
-            case 'pending_approval':
+            case 'matched':
                 return 'claim_request';
-            case 'claimed':
+            case 'returned':
                 return 'claim_approved';
-            case 'rejected':
+            case 'unclaimed':
                 return 'claim_rejected';
             default:
                 return 'general';
@@ -159,11 +159,11 @@ class NotificationController extends Controller
     private function getNotificationTitle($item)
     {
         switch ($item->status) {
-            case 'pending_approval':
+            case 'matched':
                 return 'Item Claim Request';
-            case 'claimed':
+            case 'returned':
                 return 'Item Claim Approved';
-            case 'rejected':
+            case 'unclaimed':
                 return 'Item Claim Rejected';
             default:
                 return 'Item Update';
@@ -175,14 +175,14 @@ class NotificationController extends Controller
         $claimantName = $item->claimedBy ? $item->claimedBy->name : 'Unknown User';
         
         switch ($item->status) {
-            case 'pending_approval':
-                return "{$claimantName} is claiming the item \"{$item->name}\"";
-            case 'claimed':
-                return "{$claimantName}'s claim for \"{$item->name}\" has been approved";
-            case 'rejected':
-                return "{$claimantName}'s claim for \"{$item->name}\" has been rejected";
+            case 'matched':
+                return "{$claimantName} is claiming the item \"{$item->title}\"";
+            case 'returned':
+                return "{$claimantName}'s claim for \"{$item->title}\" has been approved";
+            case 'unclaimed':
+                return "{$claimantName}'s claim for \"{$item->title}\" has been rejected";
             default:
-                return "Update regarding item \"{$item->name}\"";
+                return "Update regarding item \"{$item->title}\"";
         }
     }
 } 

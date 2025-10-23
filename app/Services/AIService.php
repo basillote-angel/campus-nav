@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Item;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 
 class AIService
@@ -20,11 +20,12 @@ class AIService
   }
 
   /**
-   * @param  Item   $referenceItem
-   * @param  Item[] $candidateItems
-   * @return Item[]
+   * @param  Model   $referenceItem
+   * @param  Model[] $candidateItems
+   * @param  class-string<Model> $candidateModelClass  The model class to hydrate matched items from
+   * @return array<int, array{item: Model|null, score: float|null}>
    */
-  public function matchLostAndFound(Item $referenceItem, array $candidateItems): array
+  public function matchLostAndFound(Model $referenceItem, array $candidateItems, string $candidateModelClass): array
   {
     $response = Http::withHeaders([
       'Authorization' => 'Bearer ' . $this->apiKey,
@@ -43,7 +44,7 @@ class AIService
       if($data['matched_items'] && count($data['matched_items']) > 0) {
         foreach ($data['matched_items'] as $item) {
           $matchedItems[] = [
-            'item' => Item::with(['owner', 'finder'])->find($item['id']),
+            'item' => $candidateModelClass::query()->find($item['id']),
             'score' => $item['score'] ?? null,
           ];
         }
@@ -56,11 +57,12 @@ class AIService
   }
 
   /**
-   * @param  Item   $referenceItem
-   * @param  Item[] $candidateItems
-   * @return array{highest_best: ?Item, lower_best: ?Item}
+   * @param  Model   $referenceItem
+   * @param  Model[] $candidateItems
+   * @param  class-string<Model> $candidateModelClass
+   * @return array{highest_best: ?array{item: Model|null, score: float|null}, lower_best: ?array{item: Model|null, score: float|null}}
    */
-  public function matchBestLostAndFound(Item $referenceItem, array $candidateItems): array
+  public function matchBestLostAndFound(Model $referenceItem, array $candidateItems, string $candidateModelClass): array
   {
     $response = Http::withHeaders([
       'Authorization' => 'Bearer ' . $this->apiKey,
@@ -79,12 +81,12 @@ class AIService
       $lowerBest = $data['lower_best'] ?? null;
 
       $highestBestItem = $highestBest ? [
-        'item' => Item::find($highestBest['id']),
+        'item' => $candidateModelClass::query()->find($highestBest['id']),
         'score' => $highestBest['score'] ?? null,
       ] : null;
 
       $lowerBestItem = $lowerBest ? [
-        'item' => Item::find($lowerBest['id']),
+        'item' => $candidateModelClass::query()->find($lowerBest['id']),
         'score' => $lowerBest['score'] ?? null,
       ] : null;
 

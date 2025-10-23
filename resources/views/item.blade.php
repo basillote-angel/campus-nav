@@ -2,7 +2,17 @@
 
 @section('content')
 <div class="min-h-full">
-    <h1 class="text-3xl font-bold text-blue-800 mb-6">Lost and Found Items</h1>
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-3xl font-bold text-blue-800">Lost and Found Items</h1>
+        <div class="flex items-center space-x-3">
+            <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                {{ Auth::user()->name }}
+            </div>
+        </div>
+    </div>
     
     <button 
         id="add-item-btn"
@@ -28,13 +38,7 @@
             <option value="found" {{ request()->type == 'found' ? 'selected' : '' }}>Found</option>
         </select>
 
-        <select 
-            id="status-select"
-            class="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            <option value="">All Statuses</option>
-            <option value="unclaimed" {{ request()->status == 'unclaimed' ? 'selected' : '' }}>Unclaimed</option>
-            <option value="claimed" {{ request()->status == 'claimed' ? 'selected' : '' }}>Claimed</option>
-        </select>
+        
     </div>
     
     <!-- Table -->
@@ -119,11 +123,32 @@
         </div>
     </div>
     
+    @if(session('success'))
+    <script>
+        window.__toastShownAt = window.__toastShownAt || 0;
+        function showOnceToast(opts){
+            const now = Date.now();
+            if (now - window.__toastShownAt < 1000) return; // guard: 1s window
+            window.__toastShownAt = now;
+            Swal.fire(Object.assign({
+                icon: 'success',
+                position: 'center',
+                showConfirmButton: false,
+                timer: 1600,
+                timerProgressBar: true,
+            }, opts));
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            showOnceToast({ title: @json(session('success')) });
+        });
+    </script>
+    @endif
+    
     <script>
         // Search, Filters, and table
         const searchInput = document.getElementById('search-input');
         const typeSelect = document.getElementById('type-select');
-        const statusSelect = document.getElementById('status-select');
+        
         const itemsTable = document.getElementById('items-table');
 
         //Image preview
@@ -149,10 +174,10 @@
         const fetchItems = () => {
             const search = searchInput.value;
             const type = typeSelect.value;
-            const status = statusSelect.value;
+            const status = '';
 
             // Build the query string
-            const query = new URLSearchParams({ search, type, status }).toString();
+            const query = new URLSearchParams({ search, type }).toString();
 
             // Send AJAX request
             fetch(`{{ route('item') }}?${query}`, {
@@ -171,7 +196,7 @@
         // Event Listeners
         searchInput.addEventListener('input', () => debounce(fetchItems));
         typeSelect.addEventListener('change', fetchItems);
-        statusSelect.addEventListener('change', fetchItems);
+        
 
         addItemButton.addEventListener('click', () => {
             addItemModal.classList.toggle('hidden');
@@ -205,6 +230,20 @@
                     addItemForm.reset();
                     // Refresh items list
                     fetchItems();
+                    // Toast success at center (guarded)
+                    if (typeof showOnceToast === 'function') {
+                        showOnceToast({ title: 'Item added successfully.' });
+                    } else {
+                        // Fallback just in case helper didn't load
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Item added successfully.',
+                            position: 'center',
+                            showConfirmButton: false,
+                            timer: 1600,
+                            timerProgressBar: true,
+                        });
+                    }
                 } else {
                     alert('Error adding item.');
                 }

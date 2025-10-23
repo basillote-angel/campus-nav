@@ -53,10 +53,21 @@
                     </svg>
                     <!-- Notification Badge -->
                     <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-                        {{ \App\Models\Item::where('status', 'pending_approval')->count() }}
+                        {{ \App\Models\FoundItem::where('status', 'matched')->count() }}
                     </span>
                 </div>
                 <span class="font-medium">Notifications</span>
+            </a>
+            @endif
+
+            @if(auth()->check() && auth()->user()->role === 'admin')
+            <a href="{{ route('users') }}" class="{{ request()->routeIs('users') ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600' }} flex items-center px-4 py-3 rounded-lg transition-all duration-200 ease-in-out group">
+                <div class="p-2 rounded-lg {{ request()->routeIs('users') ? 'bg-blue-100' : 'bg-gray-100 group-hover:bg-blue-100' }} mr-3">
+                    <svg class="h-5 w-5 {{ request()->routeIs('users') ? 'text-blue-600' : 'text-gray-500 group-hover:text-blue-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5V9a2 2 0 00-2-2h-3M7 20H2v-9a2 2 0 012-2h3m5 11V9m0 0a3 3 0 10-6 0m6 0a3 3 0 106 0" />
+                    </svg>
+                </div>
+                <span class="font-medium">Users</span>
             </a>
             @endif
 

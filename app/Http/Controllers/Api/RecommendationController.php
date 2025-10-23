@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Item;
+use App\Models\LostItem;
+use App\Models\FoundItem;
 use App\Services\AIService;
 use Illuminate\Support\Facades\Auth;
 
@@ -22,18 +23,15 @@ class RecommendationController extends Controller
                 return response()->json([], 200);
             }
 
-            $lostItems = Item::where('type', 'lost')
-                ->where('owner_id', $user->id)
-                ->where('status', 'unclaimed')
+            $lostItems = LostItem::where('user_id', $user->id)
+                ->where('status', 'open')
                 ->get();
 
             if ($lostItems->isEmpty()) {
                 return response()->json([], 200);
             }
 
-            $candidateFound = Item::where('type', 'found')
-                ->where('status', 'unclaimed')
-                ->get();
+            $candidateFound = FoundItem::where('status', 'unclaimed')->get();
 
             if ($candidateFound->isEmpty()) {
                 return response()->json([], 200);
@@ -50,7 +48,7 @@ class RecommendationController extends Controller
                     $id = $itm->id;
                     if (!isset($aggregated[$id]) || $aggregated[$id]['score'] < $score) {
                         $aggregated[$id] = [
-                            'item' => Item::with(['owner', 'finder'])->find($id),
+                            'item' => FoundItem::find($id),
                             'score' => $score,
                         ];
                     }

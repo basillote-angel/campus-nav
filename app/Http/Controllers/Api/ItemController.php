@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Item;
+use App\Models\LostItem;
+use App\Models\FoundItem;
 use App\Services\AIService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -16,23 +17,39 @@ class ItemController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Item::query();
-
-            // Filters: type (lost|found), category, date range (lost_found_date)
-            if ($request->has('type') && in_array($request->query('type'), ['lost', 'found'])) {
-                $query->where('type', $request->query('type'));
+            // Merge lost and found views via simple union approach based on type filter
+            $type = $request->query('type');
+            if ($type === 'found') {
+                $query = FoundItem::query();
+            } else if ($type === 'lost') {
+                $query = LostItem::query();
+            } else {
+                // default list latest across both
+                $lost = LostItem::query();
+                $found = FoundItem::query();
+                $lost->select(['id','user_id','category_id','title','description','image_path','location','date_lost as date','status','created_at','updated_at'])
+                    ->addSelect(\DB::raw("'lost' as type"));
+                $found->select(['id','user_id','category_id','title','description','image_path','location','date_found as date','status','created_at','updated_at'])
+                    ->addSelect(\DB::raw("'found' as type"));
+                $results = $lost->unionAll($found)->orderBy('created_at','desc')->get();
+                return response()->json($results, 200);
             }
 
+            // Filters: type (lost|found), category, date range (lost_found_date)
+            // category filter
+
             if ($request->has('category') && !empty($request->query('category'))) {
-                $query->where('category', $request->query('category'));
+                $query->where('category_id', $request->query('category'));
             }
 
             if ($request->has('dateFrom') && !empty($request->query('dateFrom'))) {
-                $query->whereDate('lost_found_date', '>=', $request->query('dateFrom'));
+                $dateCol = ($type === 'found') ? 'date_found' : 'date_lost';
+                $query->whereDate($dateCol, '>=', $request->query('dateFrom'));
             }
 
             if ($request->has('dateTo') && !empty($request->query('dateTo'))) {
-                $query->whereDate('lost_found_date', '<=', $request->query('dateTo'));
+                $dateCol = ($type === 'found') ? 'date_found' : 'date_lost';
+                $query->whereDate($dateCol, '<=', $request->query('dateTo'));
             }
 
             // Keyword search across name and description
@@ -42,7 +59,7 @@ class ItemController extends Controller
             if ($keyword !== '') {
                 $kw = "%{$keyword}%";
                 $query->where(function ($q) use ($kw) {
-                    $q->where('name', 'like', $kw)
+                    $q->where('title', 'like', $kw)
                       ->orWhere('description', 'like', $kw);
                 });
 
@@ -60,7 +77,7 @@ class ItemController extends Controller
                 $query->orderBy('created_at', 'desc');
             }
 
-            return response()->json($query->with(['owner', 'finder'])->get(), 200);
+            return response()->json($query->get(), 200);
         } catch (\Throwable $e) {
             \Log::error('ITEM_INDEX_ERROR', [
                 'message' => $e->getMessage(),
@@ -74,12 +91,12 @@ class ItemController extends Controller
     {
         try {
             $request->validate([
-                'name' => 'required|string',
-                'category' => 'required|string|in:electronics,documents,accessories,idOrCards,clothing,bagOrPouches,personalItems,schoolSupplies,others',
+                'title' => 'required|string',
+                'category_id' => 'required|integer|exists:categories,id',
                 'description' => 'required|string',
                 'type' => 'required|in:lost,found',
                 'location' => 'nullable|string',
-                'lost_found_date' => 'nullable|date',
+                'date' => 'nullable|date',
             ]);
 
             $userId = Auth::id();
@@ -96,34 +113,45 @@ class ItemController extends Controller
                 ], 403);
             }
 
-            if ($request->type == 'lost') {
-                // Lost item: the authenticated user is the owner
-                $request->merge(['owner_id' => $userId]);
-            } elseif ($request->type == 'found') {
-                // Found item: the authenticated user is the finder
-                $request->merge(['finder_id' => $userId]);
+            $item = null;
+            if ($request->type === 'lost') {
+                $item = LostItem::create([
+                    'user_id' => $userId,
+                    'category_id' => $request->category_id,
+                    'title' => $request->title,
+                    'description' => $request->description,
+                    'image_path' => $request->image_path,
+                    'location' => $request->location,
+                    'date_lost' => $request->date ? Carbon::parse($request->date)->format('Y-m-d') : null,
+                    'status' => 'open',
+                ]);
+            } else {
+                $item = FoundItem::create([
+                    'user_id' => $userId,
+                    'category_id' => $request->category_id,
+                    'title' => $request->title,
+                    'description' => $request->description,
+                    'image_path' => $request->image_path,
+                    'location' => $request->location,
+                    'date_found' => $request->date ? Carbon::parse($request->date)->format('Y-m-d') : null,
+                    'status' => 'unclaimed',
+                ]);
             }
 
             $formattedDate = $request->lost_found_date 
                 ? Carbon::parse($request->lost_found_date)->format('Y-m-d H:i:s')
                 : null;
 
-            $item = Item::create(array_merge($request->all(), [
-                'user_id' => Auth::id(),
-                'lost_found_date' => $formattedDate
-            ]));
             $responsePayload = $item;
             if ((bool) $request->boolean('include_matches', false)) {
-                $typeFilter = $item->type === 'lost' ? 'found' : 'lost';
-                $candidates = Item::where('type', $typeFilter)
-                    ->where('status', 'unclaimed')
-                    ->where('id', '!=', $item->id)
-                    ->latest('created_at')
-                    ->limit(200)
-                    ->get();
-                $matches = [];
-                if ($candidates->isNotEmpty()) {
-                    $matches = $aiService->matchLostAndFound($item, $candidates->all());
+                if ($request->type === 'lost') {
+                    $candidates = FoundItem::where('status', 'unclaimed')
+                        ->latest('created_at')->limit(200)->get();
+                    $matches = $aiService->matchLostAndFound($item, $candidates->all(), FoundItem::class);
+                } else {
+                    $candidates = LostItem::where('status', 'open')
+                        ->latest('created_at')->limit(200)->get();
+                    $matches = $aiService->matchLostAndFound($item, $candidates->all(), LostItem::class);
                 }
                 $responsePayload = [ 'item' => $item, 'matches' => $matches ];
                 \Log::info('AI_MATCHES_CREATED', [
@@ -138,10 +166,20 @@ class ItemController extends Controller
         }
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         try {
-           $item = Item::with(['owner', 'finder'])->find($id);
+           $type = $request->query('type');
+           if ($type === 'found') {
+               $item = FoundItem::find($id);
+           } else if ($type === 'lost') {
+               $item = LostItem::find($id);
+           } else {
+               // fallback: try both; beware overlapping ids
+               $lost = LostItem::find($id);
+               $found = $lost ? null : FoundItem::find($id);
+               $item = $lost ?: $found;
+           }
 
             if (!$item) {
                 return response()->json(['message' => 'Item not found'], 404);
@@ -156,7 +194,7 @@ class ItemController extends Controller
     public function update(Request $request, $id, AIService $aiService)
     {
         try {
-            $item = Item::find($id);
+            $item = LostItem::find($id) ?: FoundItem::find($id);
 
             if (!$item) {
                 return response()->json(['message' => 'Item not found'], 404);
@@ -173,20 +211,20 @@ class ItemController extends Controller
                 ], 403);
             }
 
-            $item->update($request->only(['name', 'category', 'description', 'type', 'location', 'lost_found_date']));
+            if ($item instanceof LostItem) {
+                $item->update($request->only(['title','category_id','description','location','date_lost','status']));
+            } else {
+                $item->update($request->only(['title','category_id','description','location','date_found','status']));
+            }
 
             $responsePayload = $item;
             if ((bool) $request->boolean('include_matches', false)) {
-                $typeFilter = $item->type === 'lost' ? 'found' : 'lost';
-                $candidates = Item::where('type', $typeFilter)
-                    ->where('status', 'unclaimed')
-                    ->where('id', '!=', $item->id)
-                    ->latest('created_at')
-                    ->limit(200)
-                    ->get();
-                $matches = [];
-                if ($candidates->isNotEmpty()) {
-                    $matches = $aiService->matchLostAndFound($item, $candidates->all());
+                if ($item instanceof LostItem) {
+                    $candidates = FoundItem::where('status', 'unclaimed')->latest('created_at')->limit(200)->get();
+                    $matches = $aiService->matchLostAndFound($item, $candidates->all(), FoundItem::class);
+                } else {
+                    $candidates = LostItem::where('status', 'open')->latest('created_at')->limit(200)->get();
+                    $matches = $aiService->matchLostAndFound($item, $candidates->all(), LostItem::class);
                 }
                 $responsePayload = [ 'item' => $item, 'matches' => $matches ];
                 \Log::info('AI_MATCHES_UPDATED', [
@@ -202,17 +240,30 @@ class ItemController extends Controller
         }
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         try {
-            $item = Item::find($id);
+            $itemType = $request->input('type');
+            $item = null;
+            if ($itemType === 'lost') {
+                $item = LostItem::find($id);
+            } else if ($itemType === 'found') {
+                $item = FoundItem::find($id);
+            } else {
+                // Fallback when type is not provided
+                $item = LostItem::find($id) ?: FoundItem::find($id);
+            }
 
             if (!$item) {
                 return response()->json(['message' => 'Item not found'], 404);
             }
 
             $userId = Auth::id();
-            $isOwner = ($item->owner_id && $item->owner_id === $userId) || ($item->finder_id && $item->finder_id === $userId);
+            // Allow delete if current user created the item (user_id)
+            // Keep legacy support if owner_id/finder_id present
+            $isOwner = ((int) ($item->user_id ?? 0) === (int) $userId)
+                || ((int) ($item->owner_id ?? 0) === (int) $userId)
+                || ((int) ($item->finder_id ?? 0) === (int) $userId);
             if (!$isOwner) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
@@ -239,16 +290,12 @@ class ItemController extends Controller
                 return response()->json(['message' => 'Item not found'], 404);
             }
 
-            $typeFilter = $item['type'] == 'lost' ? 'found' : 'lost';
-
-            $candidateItems = Item::where('type', $typeFilter)
-                ->where('id', '!=', $item['id'])
-                ->where('status', 'unclaimed') // Exclude claimed items
-                ->get();
-            
-            $matches = [];
-            if (!$candidateItems->isEmpty()) {
-                $matches = $aiService->matchLostAndFound($item, $candidateItems->all());
+            if ($item instanceof LostItem) {
+                $candidateItems = FoundItem::where('status','unclaimed')->get();
+                $matches = $aiService->matchLostAndFound($item, $candidateItems->all(), FoundItem::class);
+            } else {
+                $candidateItems = LostItem::where('status','open')->get();
+                $matches = $aiService->matchLostAndFound($item, $candidateItems->all(), LostItem::class);
             }
 
             return response()->json($matches, 200);
@@ -276,9 +323,8 @@ class ItemController extends Controller
             }
 
             // Reference set: user's active lost items
-            $lostItems = Item::where('type', 'lost')
-                ->where('owner_id', $user->id)
-                ->where('status', 'unclaimed')
+            $lostItems = LostItem::where('user_id', $user->id)
+                ->where('status', 'open')
                 ->get();
 
             if ($lostItems->isEmpty()) {
@@ -286,9 +332,7 @@ class ItemController extends Controller
             }
 
             // Candidates: all unclaimed found items
-            $candidateFound = Item::where('type', 'found')
-                ->where('status', 'unclaimed')
-                ->get();
+            $candidateFound = FoundItem::where('status', 'unclaimed')->get();
 
             if ($candidateFound->isEmpty()) {
                 return response()->json([], 200);
@@ -306,7 +350,7 @@ class ItemController extends Controller
                     $id = $itm->id;
                     if (!isset($aggregated[$id]) || $aggregated[$id]['score'] < $score) {
                         $aggregated[$id] = [
-                            'item' => Item::with(['owner', 'finder'])->find($id),
+                            'item' => FoundItem::find($id),
                             'score' => $score,
                         ];
                     }
@@ -345,10 +389,10 @@ class ItemController extends Controller
                 'contactInfo' => 'nullable|string|max:255',
             ]);
 
-            $item = Item::find($id);
+            $item = FoundItem::find($id);
             if (!$item) return response()->json(['message' => 'Item not found'], 404);
 
-            if ($item->type !== 'found') {
+            if (!$item) {
                 return response()->json(['message' => 'Only found items can be claimed'], 422);
             }
             if ($item->status !== 'unclaimed') {
@@ -358,7 +402,7 @@ class ItemController extends Controller
             $item->claimed_by = $user->id;
             $item->claim_message = $request->input('message');
             $item->claimed_at = now();
-            $item->status = 'pending_approval';
+            $item->status = 'matched';
             $item->save();
 
             return response()->json($item, 200);

@@ -11,9 +11,11 @@
                     <p class="mt-1 text-sm text-gray-600">Welcome back! Here's what's happening with your campus navigation system.</p>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                        <span class="inline-block w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                        System Online
+                    <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                        <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        {{ Auth::user()->name }}
                     </div>
                 </div>
             </div>

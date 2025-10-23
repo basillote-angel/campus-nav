@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Item;
+use App\Models\FoundItem;
 use App\Notifications\ClaimApproved;
 use App\Notifications\ClaimRejected;
 use Illuminate\Http\Request;
@@ -15,22 +15,22 @@ class ClaimsController extends Controller
     {
         $tab = $request->query('tab', 'pending');
 
-        $pending = Item::where('status', 'pending_approval')->latest('claimed_at')->get();
-        $approved = Item::where('status', 'claimed')->latest('approved_at')->get();
-        $rejected = Item::where('status', 'unclaimed')->whereNotNull('rejected_at')->latest('rejected_at')->get();
+        $pending = FoundItem::where('status', 'matched')->latest('claimed_at')->get();
+        $approved = FoundItem::where('status', 'returned')->latest('approved_at')->get();
+        $rejected = FoundItem::where('status', 'unclaimed')->whereNotNull('rejected_at')->latest('rejected_at')->get();
 
         return view('admin.claims.index', compact('tab', 'pending', 'approved', 'rejected'));
     }
 
     public function approve(Request $request, $id)
     {
-        $item = Item::findOrFail($id);
-        if ($item->status !== 'pending_approval') {
+        $item = FoundItem::findOrFail($id);
+        if ($item->status !== 'matched') {
             return back()->with('error', 'No pending claim to approve.');
         }
         $item->approved_by = Auth::id();
         $item->approved_at = now();
-        $item->status = 'claimed';
+        $item->status = 'returned';
         $item->save();
 
         // Notify claimant if available
@@ -45,8 +45,8 @@ class ClaimsController extends Controller
     {
         $request->validate(['reason' => 'required|string|max:1000']);
 
-        $item = Item::findOrFail($id);
-        if ($item->status !== 'pending_approval') {
+        $item = FoundItem::findOrFail($id);
+        if ($item->status !== 'matched') {
             return back()->with('error', 'No pending claim to reject.');
         }
         $item->rejected_by = Auth::id();

@@ -56,12 +56,13 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium bg-white sticky right-0 z-10 shadow-md">
                         <div class="flex items-center">
-                            <a href="{{ route('items.edit', $item['id']) }}" class="text-blue-600 rounded text-xs mr-2">
+                            <a href="{{ route('items.edit', ['id' => $item['id'], 'type' => $item['type']]) }}" class="text-blue-600 rounded text-xs mr-2">
                                 <x-heroicon-m-pencil-square class="h-5 w-5"/>
                             </a>
                             <form id="delete-form-{{ $item['id'] }}" method="POST" action="{{ route('items.destroy', $item['id']) }}" class="inline-block">
                                 @csrf
                                 @method('DELETE')
+                                <input type="hidden" name="type" value="{{ $item['type'] }}">
                                 <button
                                     type="button"
                                     onclick="confirmDelete({{ $item['id'] }})"

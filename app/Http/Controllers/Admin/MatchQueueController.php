@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Item;
+use App\Models\FoundItem;
+use App\Models\LostItem;
 use App\Services\AIService;
 use Illuminate\Http\Request;
 
@@ -14,15 +15,13 @@ class MatchQueueController extends Controller
         $days = (int) $request->query('days', 14);
         $minScore = (float) $request->query('minScore', 0.6);
 
-        $recentFound = Item::where('type', 'found')
-            ->where('status', 'unclaimed')
+        $recentFound = FoundItem::where('status', 'unclaimed')
             ->where('created_at', '>=', now()->subDays($days))
             ->latest('created_at')
             ->limit(200)
             ->get();
 
-        $lostCandidates = Item::where('type', 'lost')
-            ->where('status', 'unclaimed')
+        $lostCandidates = LostItem::where('status', 'open')
             ->get();
 
         $suggestions = [];
@@ -30,7 +29,7 @@ class MatchQueueController extends Controller
             if ($lostCandidates->isEmpty()) {
                 continue;
             }
-            $matches = $aiService->matchLostAndFound($found, $lostCandidates->all());
+            $matches = $aiService->matchLostAndFound($found, $lostCandidates->all(), LostItem::class);
             foreach ($matches as $m) {
                 $s = (float) ($m['score'] ?? 0);
                 if ($s >= $minScore && isset($m['item'])) {

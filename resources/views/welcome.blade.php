@@ -35,14 +35,7 @@
                                 Log in
                             </a>
 
-                            @if (Route::has('register'))
-                                <a
-                                    href="{{ route('register') }}"
-                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                                >
-                                    Register
-                                </a>
-                            @endif
+                            
                         @endauth
                     </nav>
                 @endif
@@ -59,12 +52,6 @@
                 
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     @guest
-                        <a 
-                            href="{{ route('register') }}" 
-                            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                        >
-                            Get Started
-                        </a>
                         <a 
                             href="{{ route('login') }}" 
                             class="px-6 py-3 border border-gray-300 hover:border-blue-500 text-gray-700 font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"

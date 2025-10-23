@@ -1,0 +1,86 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #F7F9FC
+  BorderColor #7A8BA3
+}
+skinparam actor {
+  BackgroundColor #FFFFFF
+  BorderColor #7A8BA3
+}
+
+actor "Student / Mobile User" as student
+actor "Admin / Staff" as admin
+actor "AI Recommender (SBERT)" as ai
+
+rectangle "Campus Nav System" as system {
+  package "Common" {
+    usecase "Register / Login" as UC_auth
+    usecase "Manage Profile" as UC_profile
+    usecase "Receive Notifications" as UC_notify
+  }
+
+  package "Lost & Found" {
+    usecase "Post Lost Item" as UC_postLost
+    usecase "Post Found Item" as UC_postFound
+    usecase "Browse / Search Items" as UC_browse
+    usecase "Claim Item" as UC_claim
+    usecase "Moderate Posts" as UC_moderate
+    usecase "Approve / Reject Claims" as UC_claimModeration
+    usecase "View AI Match Results" as UC_viewMatches
+    usecase "Generate Matches" as UC_generateMatches
+  }
+
+  package "AR Navigation" {
+    usecase "AR Navigate to Location" as UC_arNavigate
+    usecase "Manage AR Locations" as UC_manageAr
+  }
+
+  package "Administration" {
+    usecase "Manage Users" as UC_manageUsers
+    usecase "View Analytics & Activity Logs" as UC_analytics
+  }
+}
+
+' Primary associations
+student -- UC_auth
+student -- UC_profile
+student -- UC_postLost
+student -- UC_browse
+student -- UC_claim
+student -- UC_arNavigate
+student -- UC_notify
+student -- UC_viewMatches
+
+admin -- UC_auth
+admin -- UC_postFound
+admin -- UC_moderate
+admin -- UC_claimModeration
+admin -- UC_manageUsers
+admin -- UC_manageAr
+admin -- UC_analytics
+admin -- UC_viewMatches
+admin -- UC_notify
+
+' AI and internal triggers
+ai -- UC_generateMatches
+UC_postLost ..> UC_generateMatches : triggers
+UC_postFound ..> UC_generateMatches : triggers
+UC_generateMatches ..> UC_viewMatches : updates results
+UC_generateMatches ..> UC_notify : notifies candidates
+
+' Notifications on key actions
+UC_claimModeration ..> UC_notify : decision updates
+UC_moderate ..> UC_notify : post status
+UC_postFound ..> UC_notify : new found post
+UC_postLost ..> UC_notify : submission received
+
+' Relationships
+UC_profile <.. UC_auth : include
+UC_claim ..> UC_browse : extend (select item)
+UC_arNavigate ..> UC_browse : extend (navigate to item location)
+
+@enduml
+
+
