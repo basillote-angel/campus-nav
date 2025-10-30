@@ -6,27 +6,30 @@ use Illuminate\Http\Request;
 use App\Models\FoundItem;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class NotificationController extends Controller
 {
     public function index()
     {
+        $perPage = min(max((int) request()->query('perPage', 20), 1), 100);
         // Get statistics for the dashboard
-        $pendingCount = FoundItem::where('status', 'matched')->count();
-        $approvedToday = FoundItem::where('status', 'returned')
+        $ttl = now()->addSeconds((int) env('NOTIFICATIONS_CACHE_TTL', 15));
+        $pendingCount = Cache::remember('noti.pendingCount', $ttl, fn () => FoundItem::where('status', 'matched')->count());
+        $approvedToday = Cache::remember('noti.approvedToday', $ttl, fn () => FoundItem::where('status', 'returned')
             ->whereDate('updated_at', Carbon::today())
-            ->count();
-        $rejectedToday = FoundItem::where('status', 'unclaimed')
+            ->count());
+        $rejectedToday = Cache::remember('noti.rejectedToday', $ttl, fn () => FoundItem::where('status', 'unclaimed')
             ->whereDate('updated_at', Carbon::today())
-            ->count();
-        $totalClaims = FoundItem::whereIn('status', ['matched', 'returned', 'unclaimed'])->count();
+            ->count());
+        $totalClaims = Cache::remember('noti.totalClaims', $ttl, fn () => FoundItem::whereIn('status', ['matched', 'returned', 'unclaimed'])->count());
 
         // Get all items that need admin attention (pending approval, claimed, rejected)
         $notifications = FoundItem::with(['user', 'claimedBy'])
             ->whereIn('status', ['matched', 'returned', 'unclaimed'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($perPage);
 
         return view('notifications', compact('notifications', 'pendingCount', 'approvedToday', 'rejectedToday', 'totalClaims'));
     }

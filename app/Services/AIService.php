@@ -27,10 +27,13 @@ class AIService
    */
   public function matchLostAndFound(Model $referenceItem, array $candidateItems, string $candidateModelClass): array
   {
+    $timeout = (int) env('AI_HTTP_TIMEOUT', 5);
+    $retries = (int) env('AI_HTTP_RETRIES', 1);
+
     $response = Http::withHeaders([
       'Authorization' => 'Bearer ' . $this->apiKey,
       'Content-Type' => 'application/json',
-    ])->post($this->baseUrl . '/v1/match-items', [
+    ])->timeout($timeout)->retry($retries, 200)->post($this->baseUrl . '/v1/match-items', [
       'reference_item' => $referenceItem,
       'candidate_items' => $candidateItems,
       'top_k' => $this->topK,
@@ -64,10 +67,13 @@ class AIService
    */
   public function matchBestLostAndFound(Model $referenceItem, array $candidateItems, string $candidateModelClass): array
   {
+    $timeout = (int) env('AI_HTTP_TIMEOUT', 5);
+    $retries = (int) env('AI_HTTP_RETRIES', 1);
+
     $response = Http::withHeaders([
       'Authorization' => 'Bearer ' . $this->apiKey,
       'Content-Type' => 'application/json',
-    ])->post($this->baseUrl . '/v1/match-items/best', [
+    ])->timeout($timeout)->retry($retries, 200)->post($this->baseUrl . '/v1/match-items/best', [
       'reference_item' => $referenceItem,
       'candidate_items' => $candidateItems,
       'top_k' => $this->topK,
@@ -97,5 +103,42 @@ class AIService
     }
 
     throw new \Exception('AI Service error: ' . $response->body());
+  }
+
+  /**
+   * Check AI service health endpoint.
+   * @return array{ok: bool, service?: array<string, mixed>, error?: string}
+   */
+  public function health(): array
+  {
+    $timeout = (int) env('AI_HTTP_TIMEOUT', 5);
+    $retries = (int) env('AI_HTTP_RETRIES', 1);
+
+    $request = Http::timeout($timeout)->retry($retries, 200);
+    if (!empty($this->apiKey)) {
+      $request = $request->withHeaders([
+        'Authorization' => 'Bearer ' . $this->apiKey,
+      ]);
+    }
+
+    try {
+      $response = $request->get($this->baseUrl . '/v1/health');
+      if ($response->successful()) {
+        return [
+          'ok' => true,
+          'service' => $response->json(),
+        ];
+      }
+
+      return [
+        'ok' => false,
+        'error' => 'HTTP ' . $response->status() . ': ' . $response->body(),
+      ];
+    } catch (\Throwable $e) {
+      return [
+        'ok' => false,
+        'error' => $e->getMessage(),
+      ];
+    }
   }
 }

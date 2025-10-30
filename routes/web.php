@@ -52,7 +52,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         
+        // Categories CRUD
+        Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
         Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+        Route::get('/categories/{id}/edit', [CategoryController::class, 'edit'])->name('categories.edit');
+        Route::put('/categories/{id}', [CategoryController::class, 'update'])->name('categories.update');
         Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
     });
@@ -60,6 +64,7 @@ Route::middleware('auth')->group(function () {
     // Admin matches queue (admin + staff)
     Route::middleware([RoleMiddleware::class . ':admin,staff'])->group(function () {
         Route::get('/admin/matches', [MatchQueueController::class, 'index'])->name('admin.matches.index');
+        Route::post('/admin/matches/refresh', [MatchQueueController::class, 'refresh'])->name('admin.matches.refresh');
         Route::get('/admin/claims', [ClaimsController::class, 'index'])->name('admin.claims.index');
         Route::post('/admin/claims/{id}/approve', [ClaimsController::class, 'approve'])->name('admin.claims.approve');
         Route::post('/admin/claims/{id}/reject', [ClaimsController::class, 'reject'])->name('admin.claims.reject');

@@ -25,13 +25,18 @@ class RecommendationController extends Controller
 
             $lostItems = LostItem::where('user_id', $user->id)
                 ->where('status', 'open')
+                ->latest('created_at')
+                ->limit((int) env('AI_LOST_REF_LIMIT', 10))
                 ->get();
 
             if ($lostItems->isEmpty()) {
                 return response()->json([], 200);
             }
 
-            $candidateFound = FoundItem::where('status', 'unclaimed')->get();
+            $candidateFound = FoundItem::where('status', 'unclaimed')
+                ->latest('created_at')
+                ->limit((int) env('AI_CANDIDATE_LIMIT', 200))
+                ->get();
 
             if ($candidateFound->isEmpty()) {
                 return response()->json([], 200);
@@ -39,7 +44,7 @@ class RecommendationController extends Controller
 
             $aggregated = [];
             foreach ($lostItems as $lost) {
-                $matches = $aiService->matchLostAndFound($lost, $candidateFound->all());
+                $matches = $aiService->matchLostAndFound($lost, $candidateFound->all(), \App\Models\FoundItem::class);
                 foreach ($matches as $m) {
                     if (!isset($m['item'])) { continue; }
                     $itm = $m['item'];

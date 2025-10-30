@@ -39,11 +39,15 @@ class ProfileController extends Controller
 
         $lostItems = LostItem::whereNotIn('id', $postedLostIds)
             ->where('status', 'open')
+            ->latest('created_at')
+            ->limit((int) env('AI_CANDIDATE_LIMIT', 200))
             ->get()
             ->all();
         
         $foundItems = FoundItem::whereNotIn('id', $postedFoundIds)
             ->where('status', 'unclaimed')
+            ->latest('created_at')
+            ->limit((int) env('AI_CANDIDATE_LIMIT', 200))
             ->get()
             ->all();
         

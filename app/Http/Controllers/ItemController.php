@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use App\Jobs\ComputeItemMatches;
 
 class ItemController extends Controller
 {
@@ -82,69 +84,75 @@ class ItemController extends Controller
                 ];
             });
         } else {
-            // All types: merge lost and found, sort by latest created_at
-            $lostQuery = LostItem::query();
-            $foundQuery = FoundItem::query();
+            // All types: build a single paginated union query in SQL
+            $perPage = 10;
+
+            $lost = DB::table('lost_items')
+                ->leftJoin('categories', 'lost_items.category_id', '=', 'categories.id')
+                ->select([
+                    'lost_items.id as id',
+                    DB::raw("lost_items.title as name"),
+                    'lost_items.description as description',
+                    'lost_items.location as location',
+                    'lost_items.status as status',
+                    DB::raw("'lost' as type"),
+                    'lost_items.date_lost as lost_found_date',
+                    'categories.name as category',
+                    'lost_items.created_at as created_at',
+                    'lost_items.updated_at as updated_at',
+                ]);
+
+            $found = DB::table('found_items')
+                ->leftJoin('categories', 'found_items.category_id', '=', 'categories.id')
+                ->select([
+                    'found_items.id as id',
+                    DB::raw("found_items.title as name"),
+                    'found_items.description as description',
+                    'found_items.location as location',
+                    'found_items.status as status',
+                    DB::raw("'found' as type"),
+                    'found_items.date_found as lost_found_date',
+                    'categories.name as category',
+                    'found_items.created_at as created_at',
+                    'found_items.updated_at as updated_at',
+                ]);
 
             if ($request->filled('search')) {
                 $kw = '%' . $request->search . '%';
-                $applySearch = function ($q) use ($kw) {
-                    $q->where(function ($qq) use ($kw) {
-                        $qq->where('title', 'LIKE', $kw)
-                           ->orWhere('description', 'LIKE', $kw)
-                           ->orWhere('location', 'LIKE', $kw);
-                    });
-                };
-                $applySearch($lostQuery);
-                $applySearch($foundQuery);
+                $lost->where(function ($q) use ($kw) {
+                    $q->where('lost_items.title', 'like', $kw)
+                      ->orWhere('lost_items.description', 'like', $kw)
+                      ->orWhere('lost_items.location', 'like', $kw);
+                });
+                $found->where(function ($q) use ($kw) {
+                    $q->where('found_items.title', 'like', $kw)
+                      ->orWhere('found_items.description', 'like', $kw)
+                      ->orWhere('found_items.location', 'like', $kw);
+                });
             }
 
-            $lostItems = $lostQuery->with('category')->get();
-            $foundItems = $foundQuery->with('category')->get();
+            $merged = DB::query()
+                ->fromSub($lost->unionAll($found), 'items')
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
 
-            $lostMapped = $lostItems->map(function ($i) {
+            // Normalize items to arrays to match blade expectations ($item['key'])
+            $merged->getCollection()->transform(function ($row) {
                 return [
-                    'id' => $i->id,
-                    'name' => $i->title,
-                    'description' => $i->description,
-                    'location' => $i->location,
-                    'status' => $i->status,
-                    'type' => 'lost',
-                    'lost_found_date' => $i->date_lost,
-                    'category' => optional($i->category)->name,
-                    'created_at' => $i->created_at,
-                    'updated_at' => $i->updated_at,
+                    'id' => $row->id,
+                    'name' => $row->name,
+                    'description' => $row->description,
+                    'location' => $row->location,
+                    'status' => $row->status,
+                    'type' => $row->type,
+                    'lost_found_date' => $row->lost_found_date,
+                    'category' => $row->category,
+                    'created_at' => $row->created_at,
+                    'updated_at' => $row->updated_at,
                 ];
             });
 
-            $foundMapped = $foundItems->map(function ($i) {
-                return [
-                    'id' => $i->id,
-                    'name' => $i->title,
-                    'description' => $i->description,
-                    'location' => $i->location,
-                    'status' => $i->status,
-                    'type' => 'found',
-                    'lost_found_date' => $i->date_found,
-                    'category' => optional($i->category)->name,
-                    'created_at' => $i->created_at,
-                    'updated_at' => $i->updated_at,
-                ];
-            });
-
-            $all = $lostMapped->concat($foundMapped);
-            $sorted = $all->sortByDesc(function ($i) { return $i['created_at']; })->values();
-
-            $perPage = 10;
-            $page = LengthAwarePaginator::resolveCurrentPage();
-            $currentPageItems = $sorted->slice(($page - 1) * $perPage, $perPage)->values();
-            $items = new LengthAwarePaginator(
-                $currentPageItems,
-                $sorted->count(),
-                $perPage,
-                $page,
-                ['path' => $request->url(), 'query' => $request->query()]
-            );
+            $items = $merged;
         }
 
         if ($request->ajax()) {
@@ -213,6 +221,10 @@ class ItemController extends Controller
             }
         }
         $model->update($payload);
+
+        // Queue async match computation for the updated item
+        $refType = $request->type === 'lost' ? 'lost' : 'found';
+        ComputeItemMatches::dispatch($refType, $model->id);
         session()->flash('success', 'Item updated successfully.');
         return redirect()->route('item');
     }
@@ -286,7 +298,11 @@ class ItemController extends Controller
         }
 
         if ($created) {
-            return response()->json(['success' => true]);
+            // Queue async match computation for the new item
+            $refType = $request->type === 'lost' ? 'lost' : 'found';
+            ComputeItemMatches::dispatch($refType, $created->id);
+
+            return response()->json(['success' => true, 'matchesQueued' => true]);
         }
 
         return response()->json(['success' => false, 'message' => 'Create failed']);

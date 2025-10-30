@@ -18,18 +18,18 @@
             @foreach ($items as $item)
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4">
-                        <div class="text-sm font-medium text-gray-900">{{$item['category']}}</div>
+                        <div class="text-sm font-medium text-gray-900">{{ data_get($item, 'category') }}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">{{$item['name']}}</div>
+                        <div class="text-sm font-medium text-gray-900">{{ data_get($item, 'name') }}</div>
                     </td>
                     <td class="px-6 py-4">
-                        <div class="text-sm text-gray-500 max-w-xs truncate">{{$item['description']}}</div>
+                        <div class="text-sm text-gray-500 max-w-xs truncate">{{ data_get($item, 'description') }}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        @if($item['type'] == 'lost')
+                        @if(data_get($item, 'type') == 'lost')
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                {{$item['type']}}
+                                {{ data_get($item, 'type') }}
                             </span>
                         @else
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
@@ -38,34 +38,34 @@
                         @endif
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        @if($item['status'] == 'unclaimed')
+                        @if(data_get($item, 'status') == 'unclaimed')
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                {{$item['status']}}
+                                {{ data_get($item, 'status') }}
                             </span>
                         @else
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
-                                {{$item['status']}}
+                                {{ data_get($item, 'status') }}
                             </span>
                         @endif
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{$item['location']}}
+                        {{ data_get($item, 'location') }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{$item['lost_found_date']}}
+                        {{ data_get($item, 'lost_found_date') }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium bg-white sticky right-0 z-10 shadow-md">
                         <div class="flex items-center">
-                            <a href="{{ route('items.edit', ['id' => $item['id'], 'type' => $item['type']]) }}" class="text-blue-600 rounded text-xs mr-2">
+                            <a href="{{ route('items.edit', ['id' => data_get($item, 'id'), 'type' => data_get($item, 'type')]) }}" class="text-blue-600 rounded text-xs mr-2">
                                 <x-heroicon-m-pencil-square class="h-5 w-5"/>
                             </a>
-                            <form id="delete-form-{{ $item['id'] }}" method="POST" action="{{ route('items.destroy', $item['id']) }}" class="inline-block">
+                            <form id="delete-form-{{ data_get($item, 'id') }}" method="POST" action="{{ route('items.destroy', data_get($item, 'id')) }}" class="inline-block">
                                 @csrf
                                 @method('DELETE')
-                                <input type="hidden" name="type" value="{{ $item['type'] }}">
+                                <input type="hidden" name="type" value="{{ data_get($item, 'type') }}">
                                 <button
                                     type="button"
-                                    onclick="confirmDelete({{ $item['id'] }})"
+                                    onclick="confirmDelete({{ data_get($item, 'id') }})"
                                     class="text-red-600 rounded text-xs cursor-pointer"
                                 >
                                     <x-heroicon-c-trash class="h-5 w-5 "/>

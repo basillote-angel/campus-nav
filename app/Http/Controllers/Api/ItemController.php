@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LostItem;
 use App\Models\FoundItem;
 use App\Services\AIService;
+use App\Jobs\ComputeItemMatches;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +18,7 @@ class ItemController extends Controller
     public function index(Request $request)
     {
         try {
+            $perPage = min(max((int) $request->query('perPage', 20), 1), 100);
             // Merge lost and found views via simple union approach based on type filter
             $type = $request->query('type');
             if ($type === 'found') {
@@ -31,8 +33,10 @@ class ItemController extends Controller
                     ->addSelect(\DB::raw("'lost' as type"));
                 $found->select(['id','user_id','category_id','title','description','image_path','location','date_found as date','status','created_at','updated_at'])
                     ->addSelect(\DB::raw("'found' as type"));
-                $results = $lost->unionAll($found)->orderBy('created_at','desc')->get();
-                return response()->json($results, 200);
+                $merged = \DB::query()
+                    ->fromSub($lost->unionAll($found), 'items')
+                    ->orderBy('created_at', 'desc');
+                return response()->json($merged->paginate($perPage), 200);
             }
 
             // Filters: type (lost|found), category, date range (lost_found_date)
@@ -66,7 +70,7 @@ class ItemController extends Controller
                 if ($sort === 'relevance') {
                     // Simple heuristic relevance sort
                     $query->orderByRaw(
-                        "(CASE WHEN name LIKE ? THEN 2 ELSE 0 END) + (CASE WHEN description LIKE ? THEN 1 ELSE 0 END) DESC",
+                        "(CASE WHEN title LIKE ? THEN 2 ELSE 0 END) + (CASE WHEN description LIKE ? THEN 1 ELSE 0 END) DESC",
                         [$kw, $kw]
                     );
                 }
@@ -77,7 +81,7 @@ class ItemController extends Controller
                 $query->orderBy('created_at', 'desc');
             }
 
-            return response()->json($query->get(), 200);
+            return response()->json($query->paginate($perPage), 200);
         } catch (\Throwable $e) {
             \Log::error('ITEM_INDEX_ERROR', [
                 'message' => $e->getMessage(),
@@ -142,25 +146,13 @@ class ItemController extends Controller
                 ? Carbon::parse($request->lost_found_date)->format('Y-m-d H:i:s')
                 : null;
 
-            $responsePayload = $item;
+            // Queue async matching instead of blocking the request
             if ((bool) $request->boolean('include_matches', false)) {
-                if ($request->type === 'lost') {
-                    $candidates = FoundItem::where('status', 'unclaimed')
-                        ->latest('created_at')->limit(200)->get();
-                    $matches = $aiService->matchLostAndFound($item, $candidates->all(), FoundItem::class);
-                } else {
-                    $candidates = LostItem::where('status', 'open')
-                        ->latest('created_at')->limit(200)->get();
-                    $matches = $aiService->matchLostAndFound($item, $candidates->all(), LostItem::class);
-                }
-                $responsePayload = [ 'item' => $item, 'matches' => $matches ];
-                \Log::info('AI_MATCHES_CREATED', [
-                    'itemId' => $item->id,
-                    'type' => $item->type,
-                    'matchesCount' => count($matches),
-                ]);
+                $refType = $request->type === 'lost' ? 'lost' : 'found';
+                ComputeItemMatches::dispatch($refType, $item->id);
             }
-            return response()->json($responsePayload, 201);
+
+            return response()->json([ 'item' => $item, 'matchesQueued' => (bool) $request->boolean('include_matches', false) ], 201);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to create item', 'message' => $e->getMessage()], 500);
         }
@@ -217,24 +209,13 @@ class ItemController extends Controller
                 $item->update($request->only(['title','category_id','description','location','date_found','status']));
             }
 
-            $responsePayload = $item;
+            // Queue async matching instead of blocking the request
             if ((bool) $request->boolean('include_matches', false)) {
-                if ($item instanceof LostItem) {
-                    $candidates = FoundItem::where('status', 'unclaimed')->latest('created_at')->limit(200)->get();
-                    $matches = $aiService->matchLostAndFound($item, $candidates->all(), FoundItem::class);
-                } else {
-                    $candidates = LostItem::where('status', 'open')->latest('created_at')->limit(200)->get();
-                    $matches = $aiService->matchLostAndFound($item, $candidates->all(), LostItem::class);
-                }
-                $responsePayload = [ 'item' => $item, 'matches' => $matches ];
-                \Log::info('AI_MATCHES_UPDATED', [
-                    'itemId' => $item->id,
-                    'type' => $item->type,
-                    'matchesCount' => count($matches),
-                ]);
+                $refType = $item instanceof LostItem ? 'lost' : 'found';
+                ComputeItemMatches::dispatch($refType, $item->id);
             }
 
-            return response()->json($responsePayload, 200);
+            return response()->json([ 'item' => $item, 'matchesQueued' => (bool) $request->boolean('include_matches', false) ], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to update item', 'message' => $e->getMessage()], 500);
         }
@@ -478,6 +459,63 @@ class ItemController extends Controller
             return response()->json($item, 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to reject claim', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Admin/Staff: enqueue AI matching for a specific item id.
+     * Optional body: { "type": "lost"|"found" } to disambiguate.
+     */
+    public function computeMatches(Request $request, $id)
+    {
+        try {
+            $user = Auth::user();
+            $role = $user->role ?? 'student';
+            if (!in_array($role, ['admin', 'staff'])) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+
+            $type = $request->input('type');
+            $reference = null;
+            $refType = null;
+
+            if ($type === 'lost') {
+                $reference = LostItem::find($id);
+                $refType = 'lost';
+            } else if ($type === 'found') {
+                $reference = FoundItem::find($id);
+                $refType = 'found';
+            } else {
+                // Auto-detect by searching found first, then lost
+                $reference = FoundItem::find($id);
+                if ($reference) {
+                    $refType = 'found';
+                } else {
+                    $reference = LostItem::find($id);
+                    if ($reference) {
+                        $refType = 'lost';
+                    }
+                }
+            }
+
+            if (!$reference || !$refType) {
+                return response()->json(['message' => 'Item not found'], 404);
+            }
+
+            ComputeItemMatches::dispatch($refType, $reference->id);
+
+            return response()->json([
+                'queued' => true,
+                'referenceType' => $refType,
+                'referenceId' => $reference->id,
+            ], 202);
+        } catch (\Throwable $e) {
+            \Log::error('COMPUTE_MATCHES_ERROR', [
+                'message' => $e->getMessage(),
+                'itemId' => $id,
+                'userId' => Auth::id(),
+            ]);
+            return response()->json(['message' => 'Server error'], 500);
         }
     }
 
