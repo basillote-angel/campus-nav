@@ -1,23 +1,34 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="min-h-full">
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-3xl font-bold text-blue-800">Manage Users</h1>
-        <div class="flex items-center space-x-3">
-            <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
-                <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                </svg>
-                {{ Auth::user()->name }}
+
+<div class="bg-gradient-to-br from-blue-50 via-white to-indigo-50 min-h-full">
+    <div class="bg-white shadow-sm border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-[#123A7D]">Manage Users</h1>
+                   
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="bg-[rgba(59,130,246,0.08)] text-[rgba(59,130,246,0.8)] px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                        <svg class="w-4 h-4 text-[rgba(59,130,246,0.8)] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
+                            </path>
+                        </svg>
+                        {{ Auth::user()->name }}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     
     <button 
-        id="add-user-btn"
-        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-gblue-500 focus:ring-opacity-50 transition">
-        + Add New User
+            id="add-user-btn"
+            class="bg-[#123A7D] hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded mb-6 shadow-md transition transform hover:scale-105">
+            + Add New User
     </button>
 
     <!-- Search -->
@@ -94,7 +105,7 @@
             </form>
         </div>
     </div>
-
+</div>
     @if(session('success'))
     <script>
         window.__toastShownAt = window.__toastShownAt || 0;
