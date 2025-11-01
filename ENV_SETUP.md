@@ -32,6 +32,9 @@ LOG_CHANNEL=stack
 QUEUE_CONNECTION=database
 MAIL_MAILER=log
 
+# FCM (Firebase Cloud Messaging)
+FCM_SERVER_KEY=
+
 #### Database indexes and search
 - Items table includes indexes on: type, category, status, lost_found_date, created_at
 - FULLTEXT on: name, description (MySQL InnoDB)

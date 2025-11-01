@@ -44,4 +44,7 @@ return [
         'top_k' => (int) env('AI_TOP_K', 10),
         'threshold' => (float) env('AI_THRESHOLD', 0.6),
     ],
+    'fcm' => [
+        'server_key' => env('FCM_SERVER_KEY'),
+    ],
 ];

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\FoundItem;
 use App\Models\ItemMatch;
 use App\Models\LostItem;
+use App\Jobs\SendNotificationJob;
 use App\Services\AIService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,10 +47,28 @@ class ComputeItemMatches implements ShouldQueue
                 $score = (float) ($m['score'] ?? 0);
                 if (!$item || $score < $threshold) { continue; }
 
-                ItemMatch::query()->updateOrCreate(
+                // Check if match already exists
+                $existingMatch = ItemMatch::where('lost_id', $item->id)
+                    ->where('found_id', $reference->id)
+                    ->first();
+
+                $match = ItemMatch::updateOrCreate(
                     [ 'lost_id' => $item->id, 'found_id' => $reference->id ],
                     [ 'similarity_score' => $score, 'status' => 'pending' ]
                 );
+
+                // Send notification only for NEW matches
+                if (!$existingMatch && $item->user_id) {
+                    $scorePercent = number_format($score * 100, 1);
+                    SendNotificationJob::dispatch(
+                        $item->user_id, // Notify owner of the lost item
+                        'Potential Match Found! 🎯',
+                        "A found item matches your lost item '{$item->title}' ({$scorePercent}% match). Check it out!",
+                        'matchFound',
+                        $reference->id, // Related item ID (the found item)
+                        $scorePercent
+                    );
+                }
             }
             return;
         }
@@ -70,10 +89,28 @@ class ComputeItemMatches implements ShouldQueue
             $score = (float) ($m['score'] ?? 0);
             if (!$item || $score < $threshold) { continue; }
 
-            ItemMatch::query()->updateOrCreate(
+            // Check if match already exists
+            $existingMatch = ItemMatch::where('lost_id', $reference->id)
+                ->where('found_id', $item->id)
+                ->first();
+
+            $match = ItemMatch::updateOrCreate(
                 [ 'lost_id' => $reference->id, 'found_id' => $item->id ],
                 [ 'similarity_score' => $score, 'status' => 'pending' ]
             );
+
+            // Send notification only for NEW matches
+            if (!$existingMatch && $item->user_id) {
+                $scorePercent = number_format($score * 100, 1);
+                SendNotificationJob::dispatch(
+                    $item->user_id, // Notify owner of the found item
+                    'Potential Match Found! 🎯',
+                    "A lost item matches your found item '{$item->title}' ({$scorePercent}% match). Check it out!",
+                    'matchFound',
+                    $reference->id, // Related item ID (the lost item)
+                    $scorePercent
+                );
+            }
         }
     }
 }

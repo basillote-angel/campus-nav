@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\LostItem;
 use App\Models\FoundItem;
+use App\Models\Item;
 use App\Services\AIService;
 use App\Jobs\ComputeItemMatches;
+use App\Jobs\SendNotificationJob;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -371,11 +373,10 @@ class ItemController extends Controller
             ]);
 
             $item = FoundItem::find($id);
-            if (!$item) return response()->json(['message' => 'Item not found'], 404);
-
             if (!$item) {
-                return response()->json(['message' => 'Only found items can be claimed'], 422);
+                return response()->json(['message' => 'Item not found'], 404);
             }
+
             if ($item->status !== 'unclaimed') {
                 return response()->json(['message' => 'Item is not available to claim'], 422);
             }
@@ -416,6 +417,17 @@ class ItemController extends Controller
             $item->status = 'claimed';
             $item->save();
 
+            // Send notification to claimant
+            if ($item->claimed_by) {
+                SendNotificationJob::dispatch(
+                    $item->claimed_by,
+                    'Claim Approved! ✅',
+                    "Your claim for '{$item->title}' has been approved. Please collect your item.",
+                    'claimStatusUpdate',
+                    $item->id
+                );
+            }
+
             return response()->json($item, 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to approve claim', 'message' => $e->getMessage()], 500);
@@ -445,9 +457,14 @@ class ItemController extends Controller
                 return response()->json(['message' => 'No pending claim to reject'], 422);
             }
 
+            // Save claimant ID before clearing it
+            $claimantId = $item->claimed_by;
+            $itemTitle = $item->title;
+            $rejectionReason = $request->input('reason');
+
             $item->rejected_by = $user->id;
             $item->rejected_at = now();
-            $item->rejection_reason = $request->input('reason');
+            $item->rejection_reason = $rejectionReason;
 
             // Reset to unclaimed state
             $item->status = 'unclaimed';
@@ -455,6 +472,17 @@ class ItemController extends Controller
             $item->claim_message = null;
             $item->claimed_at = null;
             $item->save();
+
+            // Send notification to claimant
+            if ($claimantId) {
+                SendNotificationJob::dispatch(
+                    $claimantId,
+                    'Claim Rejected',
+                    "Your claim for '{$itemTitle}' was rejected. Reason: {$rejectionReason}",
+                    'claimStatusUpdate',
+                    $item->id
+                );
+            }
 
             return response()->json($item, 200);
         } catch (\Exception $e) {

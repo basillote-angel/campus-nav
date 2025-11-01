@@ -23,6 +23,8 @@ class User extends Authenticatable
 		'email',
 		'role',
 		'password',
+		'provider',
+		'provider_id',
 	];
 
 	/**
@@ -77,4 +79,14 @@ class User extends Authenticatable
 	{
 		return $this->hasMany(ActivityLog::class, 'user_id');
 	}
+
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
+    public function appNotifications()
+    {
+        return $this->hasMany(AppNotification::class, 'user_id');
+    }
 }

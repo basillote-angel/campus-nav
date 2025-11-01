@@ -31,12 +31,12 @@ description: 🧠 Project Context (for AI Understanding)
        - Daily activity logs
 
   📱 MOBILE APP (User Features)
-  - Register/Login
+  - Register/Login (including Google Sign-In)
   - Post Lost Item (item name, description, category, date, location)
   - View Found/lost Items
   - Receive AI recommendations for possible matches
   - AR Navigation to item location
-  - View Profile and Notifications
+  - View Profile and Notifications (push notifications via FCM)
 
   💻 WEB DASHBOARD (Admin Features)
   - Manage Users (approve, ban/delete, or view profiles)
@@ -47,9 +47,10 @@ description: 🧠 Project Context (for AI Understanding)
 
   ⚙️ TECH STACK
   - Frontend (Mobile): Flutter (Dart)
-  - Backend: Laravel (PHP)
+  - Backend: Laravel (PHP) with Sanctum authentication
   - Database: MySQL
   - AI Model: Sentence-BERT (SBERT) via FastAPI (Python)
+  - Push Notifications: Firebase Cloud Messaging (FCM)
   - Hosting: XAMPP / Localhost (dev), potential cloud for deployment
 
   🧱 GOALS
@@ -63,6 +64,40 @@ description: 🧠 Project Context (for AI Understanding)
   - The AI model (SBERT) runs in a separate Python environment.
   - It compares text descriptions of lost and found items.
   - The recommender suggested matches base on posted lost item of user.
+
+  🔔 RECENT IMPLEMENTATIONS (October 2025)
+  
+  1. **Google Sign-In Authentication** ✅ Backend Complete
+     - Migration: `2025_10_31_150000_add_google_auth_fields_to_users_table.php`
+     - Adds `provider` and `provider_id` columns to users table
+     - API endpoint: `POST /api/auth/google`
+     - Verifies Google ID tokens server-side using Google's tokeninfo endpoint
+     - Creates/updates users with Google provider info
+     - Returns Sanctum authentication tokens
+     - Status: Backend ready, Flutter UI needs asset fix (missing google_sign_in_button.png)
+
+  2. **FCM Push Notifications System** ✅ Complete
+     - Database migrations:
+       - `2025_10_30_120000_update_notifications_table_to_spec.php` (updates notifications schema)
+       - `2025_10_30_120010_create_device_tokens_table.php` (device token persistence)
+     - Models: `AppNotification`, `DeviceToken`
+     - Service: `FcmService` for sending push notifications
+     - Job: `SendNotificationJob` (queued FCM sends)
+     - API endpoints:
+       - `POST /api/device-tokens` (register device)
+       - `DELETE /api/device-tokens` (unregister device)
+       - `GET /api/notifications` (paginated list with unread count)
+       - `POST /api/notifications/{id}/read` (mark as read)
+       - `POST /api/internal/match-found` (webhook for AI matches)
+     - Notification types: `match_found`, `admin_message`, `claim_status`, `system_alert`
+     - Config: `FCM_SERVER_KEY` in .env and config/services.php
+
+  3. **Notification Features**
+     - Persistent in-app notifications with read/unread status
+     - Push notifications via Firebase Cloud Messaging (FCM)
+     - Device token management (Android, iOS, Web)
+     - Support for notification types with related IDs and scores
+     - Queue-based delivery for reliability
 
   ✅ Cursor AI Objective
   Help generate, refactor, and maintain:

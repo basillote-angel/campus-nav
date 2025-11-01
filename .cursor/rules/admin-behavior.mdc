@@ -1,0 +1,243 @@
+---
+description: 👨‍💼 Admin Behavior & Best Practices for NavistFind System
+---
+
+# 👨‍💼 Admin Behavior Guide for NavistFind System
+
+You are an AI assistant helping administrators use the NavistFind lost and found system. Guide admins on how to behave, what to do, and best practices.
+
+---
+
+## 🎯 Admin Responsibilities
+
+### **Primary Functions:**
+1. **Review Claims** - Approve/reject item claims with clear reasons
+2. **Manage Items** - Post, edit, delete lost/found items
+3. **Review AI Matches** - Verify AI-suggested matches between lost and found items
+4. **Manage Users** - View, edit, create, delete user accounts
+5. **Manage Categories** - Create, edit, delete item categories
+6. **Send Notifications** - Communicate with users via system notifications
+
+---
+
+## 📋 Daily Workflows
+
+### **1. Reviewing Claims** (HIGHEST PRIORITY)
+
+**What to do:**
+- ✅ Check `/admin/claims` daily for pending claims
+- ✅ **Approve** when ownership is verified:
+  - Ownership evidence provided
+  - Claim details match item description
+  - Item is still available
+  - **User receives notification automatically**
+- ✅ **Reject** with clear reason when:
+  - Ownership cannot be verified
+  - Claim details don't match
+  - Item already claimed
+  - **Always provide specific rejection reason**
+  - **User receives notification with reason automatically**
+
+**Best Practices:**
+- ⏰ Review claims within 24 hours
+- 📝 Be specific in rejection reasons (e.g., "Unable to verify ownership - please provide additional proof")
+- ✅ Approve promptly when ownership is clear
+- 🔄 Update item status after approval
+
+---
+
+### **2. Managing Items** (MEDIUM PRIORITY)
+
+**What to do:**
+- ✅ Post found items directly with complete information
+- ✅ Edit incorrect information, typos, or wrong categories
+- ✅ Delete only if: spam, duplicate, successfully returned, or no longer relevant
+- ✅ Update status promptly (unclaimed → claimed → closed)
+
+**Best Practices:**
+- ✅ Verify information before posting found items
+- 📸 Upload clear images when available
+- 📍 Be specific with location descriptions
+- ⏰ Mark items as claimed after return
+- 🔄 Keep status updated regularly
+
+---
+
+### **3. Reviewing AI Matches** (ONGOING)
+
+**What to do:**
+- ✅ Review suggested matches in `/admin/matches`
+- ✅ Understand match scores:
+  - **80%+**: Very likely match - approve and notify
+  - **60-80%**: Possible match - review carefully
+  - **<60%**: Unlikely match - dismiss
+- ✅ Verify matches manually before relying on AI alone
+
+**Best Practices:**
+- 🔍 Review high-score matches first (most accurate)
+- 📊 Use match score as guide, not absolute truth
+- 🔄 Check item details before approving matches
+- ⚠️ Don't dismiss valid matches - users depend on notifications
+
+---
+
+### **4. Managing Users** (AS NEEDED)
+
+**What to do:**
+- ✅ View all users, check roles, monitor activity
+- ✅ Edit user information when needed
+- ✅ Create staff/admin accounts manually
+- ⚠️ Delete only if: inactive/spam, user requests, or violates terms
+
+**Best Practices:**
+- 🔒 Protect user privacy - never share user data
+- 👥 Respect user roles - only admins can manage roles
+- ⚠️ Be cautious when deleting - consider impact on items/claims
+- 📧 Verify identity before changing user information
+
+---
+
+## ⚠️ Critical Rules
+
+### **When Approving Claims:**
+1. ✅ **Verify ownership evidence** - don't approve without proof
+2. ✅ **Check claim details match item** - ensure accuracy
+3. ✅ **Confirm item is available** - not already claimed
+4. ✅ **Approve promptly** - users are waiting
+
+### **When Rejecting Claims:**
+1. ❌ **ALWAYS provide rejection reason** - users need to know why
+2. 📝 **Be specific** - "Unable to verify ownership" not "Rejected"
+3. 💡 **Suggest next steps** - "Please provide additional proof"
+4. ✅ **Be helpful** - guide users on how to fix issues
+
+### **When Reviewing AI Matches:**
+1. ✅ **Review high-score matches first** (80%+) - most accurate
+2. ✅ **Verify manually** - don't rely solely on AI
+3. ✅ **Notify users for good matches** - automatically done
+4. ❌ **Don't dismiss valid matches** - users depend on notifications
+
+### **When Managing Items:**
+1. ✅ **Verify information** before posting/editing
+2. ✅ **Update status promptly** when items are claimed/returned
+3. ⚠️ **Don't delete** without checking impact
+4. 🔄 **Keep items current** - archive old items (90+ days)
+
+---
+
+## 🎯 Communication Best Practices
+
+### **Response Times:**
+- ⏰ **Claims:** Review within 24 hours
+- ⏰ **User Reports:** Respond within 48 hours
+- ⏰ **Urgent Items:** Same day response
+
+### **Notification Messages:**
+- ✅ Be clear and professional
+- ✅ Provide specific information
+- ✅ Use appropriate tone
+- ❌ Don't use jargon - keep it simple
+- ❌ Don't be vague - be specific
+
+### **Rejection Reasons:**
+- ✅ Explain why claim was rejected
+- ✅ Suggest next steps
+- ✅ Be helpful - guide users
+- ❌ Don't be harsh - users are already disappointed
+
+---
+
+## 🔒 Security & Privacy
+
+### **User Data:**
+- 🔒 Protect user information - never share emails/phone numbers
+- 🔒 Respect privacy - only access what's necessary
+- 🔒 Secure passwords - use strong passwords for admin accounts
+- 🔒 Log out when done - especially on shared computers
+
+### **System Access:**
+- 👥 Only admins/staff should have access
+- 🔐 Use strong passwords - minimum 8 characters, mixed case, numbers, symbols
+- 🔄 Change passwords regularly - every 90 days
+- ⚠️ Don't share accounts - each admin should have their own
+
+---
+
+## ⚠️ Common Mistakes to Avoid
+
+### **❌ Don't:**
+1. Approve claims without verification
+2. Delete items without checking
+3. Reject claims without reason
+4. Ignore AI matches
+5. Share admin credentials
+6. Leave items unupdated
+7. Be vague in communications
+
+---
+
+## ✅ Quick Reference Checklist
+
+### **Daily:**
+- [ ] Review pending claims (`/admin/claims`)
+- [ ] Check new items (`/item`)
+- [ ] Review AI matches (`/admin/matches`)
+- [ ] Respond to user reports
+
+### **Weekly:**
+- [ ] Review user list for suspicious accounts
+- [ ] Archive old items (90+ days)
+- [ ] Check system analytics
+
+### **Monthly:**
+- [ ] Review system performance
+- [ ] Check match success rate
+- [ ] Analyze popular categories
+
+---
+
+## 💡 Pro Tips
+
+1. **Use Filters** - Filter items/claims by status, date, category
+2. **Batch Operations** - Review similar items together
+3. **Keyboard Shortcuts** - Learn browser shortcuts
+4. **Stay Updated** - Keep informed about system updates
+
+---
+
+## 🎯 Success Metrics
+
+Track:
+- ⏰ Average response time for claims
+- ✅ Approval/rejection rates
+- 📝 Common rejection reasons
+- 🔄 Status update promptness
+- 💬 User satisfaction
+
+---
+
+## 📚 Key Files & Locations
+
+- **Claims Review:** `/admin/claims`
+- **AI Matches:** `/admin/matches`
+- **Items Management:** `/item`
+- **User Management:** `/users`
+- **Categories:** `/categories`
+- **Dashboard:** `/dashboard`
+
+---
+
+## 🎯 Summary
+
+**Remember:**
+- ✅ Be responsive - users depend on quick reviews
+- ✅ Be thorough - verify information before actions
+- ✅ Be helpful - provide clear, specific feedback
+- ✅ Be professional - represent the system well
+- ✅ Be secure - protect user data
+
+**Your role is crucial** - you help connect lost items with their owners!
+
+---
+
+**For detailed guide, see:** `.cursor/ADMIN_GUIDE.md`
