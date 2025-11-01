@@ -7,48 +7,52 @@
     @vite('resources/css/app.css')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.3/cdn.min.js" defer></script>
 </head>
+
 <body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
     <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-8">
+        <!-- Header -->
         <div class="text-center mb-8">
-            <h2 class="text-3xl font-bold text-gray-800">Welcome Back</h2>
-            <p class="text-gray-600 mt-2">Please sign in to your account</p>
+            <h2 class="text-3xl font-bold text-[#123A7D]">Welcome Back</h2>
+            <p class="text-[#1C2A40] mt-2">Please sign in to your account</p>
         </div>
 
+        <!-- Success Message -->
         @if (session('success'))
-            <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-600 p-4 mb-6 rounded" role="alert">
+            <div class="bg-blue-100 border-l-4 border-[#123A7D] text-[#123A7D] p-4 mb-6 rounded" role="alert">
                 <p>{{ session('success') }}</p>
             </div>
         @endif
 
+        <!-- Error Message -->
         @if ($errors->any())
             <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded" role="alert">
                 <p>{{ $errors->first() }}</p>
             </div>
         @endif
 
+        <!-- Login Form -->
         <form method="POST" action="/login" class="space-y-6">
             @csrf
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                <label for="email" class="block text-sm font-medium text-[#1C2A40] mb-1">Email Address</label>
                 <input 
                     type="email" 
                     id="email" 
                     name="email" 
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-blue-600 focus:ring-blue-600 focus:border-blue-600 transition-colors"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#123A7D] focus:border-[#123A7D] outline-none transition-colors"
                 >
             </div>
             
             <div>
-                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                
+                <label for="password" class="block text-sm font-medium text-[#1C2A40] mb-1">Password</label>
                 <div class="relative">
                     <input 
                         type="password" 
                         id="password" 
                         name="password" 
                         required 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 outline-blue-600 focus:ring-blue-600 focus:border-blue-600 transition-colors"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#123A7D] focus:border-[#123A7D] outline-none transition-colors"
                     >
                     <button 
                         type="button" 
@@ -64,15 +68,14 @@
             <div>
                 <button 
                     type="submit" 
-                    class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2"
+                    class="w-full py-2 px-4 bg-[#123A7D] text-white font-medium rounded-lg border-2 border-[#123A7D] transition-all duration-300 hover:bg-white hover:text-[#123A7D] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#123A7D]/50 focus:ring-offset-2"
                 >
-                    Sign In
+                    Log In
                 </button>
             </div>
         </form>
-        
-        
     </div>
+
     <script>
         function togglePassword() {
             const input = document.getElementById('password');
@@ -91,4 +94,4 @@
         }
     </script>
 </body>
-</html
+</html>

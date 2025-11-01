@@ -1,128 +1,135 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="min-h-full">
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-3xl font-bold text-blue-800">Lost and Found Items</h1>
-        <div class="flex items-center space-x-3">
-            <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
-                <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                </svg>
-                {{ Auth::user()->name }}
+    <div class="bg-white shadow-sm border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-[#123A7D]">Lost and Found Items</h1>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                        <svg class="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                        {{ Auth::user()->name }}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    
-    <button 
-        id="add-item-btn"
-        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition">
-        + Add New Item
-    </button>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-    <!-- Filters and Search -->
-    <div class="flex space-x-2 mb-4">
-        <input 
-            type="text" 
-            id="search-input"
-            value="{{ request()->search }}" 
-            placeholder="Search items..." 
-            class="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
+        <button 
+            id="add-item-btn"
+            style="background-color: #123A7D;"
+            class="hover:opacity-90 text-white font-bold py-2 px-4 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition">
+            + Add New Item
+        </button>
 
-        <select 
-            id="type-select"
-            class="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            <option value="">All Types</option>
-            <option value="lost" {{ request()->type == 'lost' ? 'selected' : '' }}>Lost</option>
-            <option value="found" {{ request()->type == 'found' ? 'selected' : '' }}>Found</option>
-        </select>
+        <div class="flex space-x-2 mb-4">
+            <input 
+                type="text" 
+                id="search-input"
+                value="{{ request()->search }}" 
+                placeholder="Search items..." 
+                class="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
 
+            <select 
+                id="type-select"
+                class="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">All Types</option>
+                <option value="lost" {{ request()->type == 'lost' ? 'selected' : '' }}>Lost</option>
+                <option value="found" {{ request()->type == 'found' ? 'selected' : '' }}>Found</option>
+            </select>
+
+        </div>
         
-    </div>
-    
-    <!-- Table -->
-    <div id="items-table">
-        @include('components.item-table', ['items' => $items])
-    </div>
+        <div id="items-table">
+            @include('components.item-table', ['items' => $items])
+        </div>
 
-    <!-- Create Modal -->
-    <div id="add-item-modal" class="fixed top-0 left-0 w-full h-screen overflow-y-auto bg-black/50 hidden items-center justify-center z-50">
-        <div class="bg-white p-6 w-full max-w-md rounded-lg shadow-lg my-8">
-            <h2 class="text-2xl font-bold mb-4">Add New Item</h2>
+        <div id="add-item-modal" class="fixed top-0 left-0 w-full h-screen overflow-y-auto bg-black/50 hidden items-center justify-center z-50">
+            <div class="bg-white p-6 w-full max-w-md rounded-lg shadow-lg my-8 ">
+                
+                <h2 class="text-2xl font-bold mb-4 text-[#123A7D]">Add New Item</h2>
 
-           <form id="add-item-form">
-                @csrf
+                <form id="add-item-form">
+                    @csrf
 
-                <div class="mb-4">
-                    <input 
-                        type="text" 
-                        name="name"
-                        placeholder="Item Name" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                        required
-                    />
-                </div>
+                    <div class="mb-4">
+                        <input 
+                            type="text" 
+                            name="name"
+                            placeholder="Item Name" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                            required
+                        />
+                    </div>
 
-                <div class="mb-4">
-                    <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <option value="" disabled selected>Select Category</option>
-                        <option value="electronics">Electronics</option>
-                        <option value="documents">Documents</option>
-                        <option value="accessories">Accessories</option>
-                        <option value="idOrCards">ID or Cards</option>
-                        <option value="clothing">Clothing</option>
-                        <option value="bagOrPouches">Bag or Pouches</option>
-                        <option value="personalItems">Personal Items</option>
-                        <option value="schoolSupplies">School Supplies</option>
-                        <option value="others">Others</option>
-                    </select>
-                </div>
+                    <div class="mb-4">
+                        <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="" disabled selected>Select Category</option>
+                            <option value="electronics">Electronics</option>
+                            <option value="documents">Documents</option>
+                            <option value="accessories">Accessories</option>
+                            <option value="idOrCards">ID or Cards</option>
+                            <option value="clothing">Clothing</option>
+                            <option value="bagOrPouches">Bag or Pouches</option>
+                            <option value="personalItems">Personal Items</option>
+                            <option value="schoolSupplies">School Supplies</option>
+                            <option value="others">Others</option>
+                        </select>
+                    </div>
 
-                <div class="mb-4">
-                    <textarea 
-                        type="text" 
-                        name="description"
-                        placeholder="Description" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                    ></textarea>
-                </div>
+                    <div class="mb-4">
+                        <textarea 
+                            type="text" 
+                            name="description"
+                            placeholder="Description" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        ></textarea>
+                    </div>
 
-                <div class="mb-4">
-                    <input 
-                        type="text" 
-                        name="location"
-                        placeholder="Location" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                    />
-                </div>
+                    <div class="mb-4">
+                        <input 
+                            type="text" 
+                            name="location"
+                            placeholder="Location" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
 
-                <div class="mb-4">
-                    <input 
-                        type="date" 
-                        name="lost_found_date"
-                        placeholder="Lost or Found Date" 
-                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                    />
-                </div>
+                    <div class="mb-4">
+                        <input 
+                            type="date" 
+                            name="lost_found_date"
+                            placeholder="Lost or Found Date" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
 
-                <div class="mb-4">
-                    <select name="type" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="lost">Lost</option>
-                        <option value="found">Found</option>
-                    </select>
-                </div>
+                    <div class="mb-4">
+                        <select name="type" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="lost">Lost</option>
+                            <option value="found">Found</option>
+                        </select>
+                    </div>
 
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded w-full">
-                    Submit
-                </button>
-            </form>
+                    <button type="submit" 
+                        style="background-color: #123A7D;"
+                        class="hover:opacity-90 text-white py-2 px-4 rounded w-full">
+                        Submit
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
-    
+
     @if(session('success'))
     <script>
         window.__toastShownAt = window.__toastShownAt || 0;
@@ -145,6 +152,7 @@
     @endif
     
     <script>
+        // ... (Your JavaScript remains unchanged)
         // Search, Filters, and table
         const searchInput = document.getElementById('search-input');
         const typeSelect = document.getElementById('type-select');
@@ -164,7 +172,7 @@
 
         // Debounce for optimized AJAX requests
         let debounceTimeout;
-       
+        
         const debounce = (func, delay = 500) => {
             clearTimeout(debounceTimeout);
             debounceTimeout = setTimeout(() => func(), delay);
@@ -217,6 +225,7 @@
             fetch("{{ route('item.store') }}", {
                 method: 'POST',
                 headers: {
+                    // 'Content-Type' is not set for FormData; boundary is auto-added
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
                 },
                 body: formData

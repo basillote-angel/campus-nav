@@ -7,13 +7,18 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Notifications</h1>
+            
+                    <h1 class="text-3xl font-bold text-[#123A7D]">Notifications</h1>
                     <p class="mt-1 text-sm text-gray-600">Manage item claim requests and system notifications</p>
                 </div>
-                <div class="flex items-center space-x-3">
-                    <div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                        <span class="inline-block w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
-                        Admin Panel
+                 <div class="flex items-center space-x-3">
+                    <div class="bg-[rgba(59,130,246,0.08)] text-[rgba(59,130,246,0.8)] px-3 py-1 rounded-full text-sm font-medium flex items-center">
+                        <svg class="w-4 h-4 text-[rgba(59,130,246,0.8)] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z">
+                            </path>
+                        </svg>
+                        {{ Auth::user()->name }}
                     </div>
                 </div>
             </div>
