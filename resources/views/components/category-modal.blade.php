@@ -1,5 +1,5 @@
 <!-- CATEGORY MODAL -->
-<div id="categoryModal" class="fixed inset-0 bg-transparent z-[9999] flex items-center justify-center hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;">
+<div id="categoryModal" class="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center hidden">
   <div class="bg-white w-full max-w-md rounded-xl shadow-2xl p-6 space-y-4 mx-4 max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out scale-95 opacity-0 border border-gray-200" id="categoryModalContent">
     <div class="flex justify-between items-center sticky top-0 bg-white pb-4 border-b border-gray-200 -mx-6 px-6">
       <h3 class="text-xl font-bold text-gray-900">Manage Categories</h3>

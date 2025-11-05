@@ -47,4 +47,13 @@ return [
     'fcm' => [
         'server_key' => env('FCM_SERVER_KEY'),
     ],
+    
+    'admin_office' => [
+        'location' => env('ADMIN_OFFICE_LOCATION', 'Building A, Room 101 (Admin Office)'),
+        'office_hours' => env('ADMIN_OFFICE_HOURS', 'Monday-Friday, 8:00 AM - 5:00 PM'),
+        'contact_email' => env('ADMIN_OFFICE_EMAIL', 'admin@school.edu'),
+        'contact_phone' => env('ADMIN_OFFICE_PHONE', '(555) 123-4567'),
+        'collection_deadline_days' => (int) env('COLLECTION_DEADLINE_DAYS', 7),
+        'auto_revert_days' => (int) env('COLLECTION_AUTO_REVERT_DAYS', 14),
+    ],
 ];

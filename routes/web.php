@@ -7,7 +7,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CampusMapController;
 use App\Http\Controllers\ItemController;
-use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Controllers\Admin\MatchQueueController;
@@ -31,18 +30,25 @@ Route::middleware('auth')->group(function () {
         Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
         
-        // Notifications routes for admin
-        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
-        Route::post('/notifications/{id}/approve', [NotificationController::class, 'approve'])->name('notifications.approve');
-        Route::post('/notifications/{id}/reject', [NotificationController::class, 'reject'])->name('notifications.reject');
+        // Redirect old notifications route to claims management
+        Route::get('/notifications', function() {
+            return redirect()->route('admin.claims.index');
+        })->name('notifications');
     });
 
     Route::middleware([RoleMiddleware::class . ':admin,staff'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/data', [DashboardController::class, 'getDashboardData'])->name('dashboard.data');
+        Route::get('/dashboard/chart-data', [DashboardController::class, 'getChartData'])->name('dashboard.chartData');
+        Route::get('/dashboard/export', [DashboardController::class, 'exportAnalytics'])->name('dashboard.export');
+        Route::post('/dashboard/refresh', [DashboardController::class, 'refresh'])->name('dashboard.refresh');
 
         Route::get('/campus-map', [CampusMapController::class, 'index'])->name('campus-map');
 
         Route::get('/item', [ItemController::class, 'index'])->name('item');
+        Route::get('/items/export', [ItemController::class, 'export'])->name('items.export');
+        Route::post('/items/bulk-update', [ItemController::class, 'bulkUpdate'])->name('items.bulkUpdate');
+        Route::post('/items/bulk-delete', [ItemController::class, 'bulkDelete'])->name('items.bulkDelete');
         Route::post('/items', [ItemController::class, 'store'])->name('item.store');
         Route::get('/items/{id}/edit', [ItemController::class, 'edit'])->name('items.edit');
         Route::put('/items/{id}', [ItemController::class, 'update'])->name('items.update');
@@ -50,6 +56,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
         Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->name('profile.changePassword');
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         
         // Categories CRUD
@@ -68,5 +75,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/admin/claims', [ClaimsController::class, 'index'])->name('admin.claims.index');
         Route::post('/admin/claims/{id}/approve', [ClaimsController::class, 'approve'])->name('admin.claims.approve');
         Route::post('/admin/claims/{id}/reject', [ClaimsController::class, 'reject'])->name('admin.claims.reject');
+        Route::post('/admin/claims/{id}/mark-collected', [ClaimsController::class, 'markCollected'])->name('admin.claims.markCollected');
     });
 });

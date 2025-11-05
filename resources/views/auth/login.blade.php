@@ -31,7 +31,7 @@
         @endif
 
         <!-- Login Form -->
-        <form method="POST" action="/login" class="space-y-6">
+        <form method="POST" action="{{ route('login') }}" class="space-y-6">
             @csrf
             <div>
                 <label for="email" class="block text-sm font-medium text-[#1C2A40] mb-1">Email Address</label>

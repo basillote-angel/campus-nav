@@ -9,6 +9,8 @@ class ClaimedItem extends Model
 {
 	use HasFactory;
 
+	protected $table = 'claimed_items';
+
 	protected $fillable = [
 		'found_item_id',
 		'claimant_id',
@@ -37,5 +39,12 @@ class ClaimedItem extends Model
 		return $this->belongsTo(User::class, 'claimant_id');
 	}
 }
+
+
+
+
+
+
+
 
 

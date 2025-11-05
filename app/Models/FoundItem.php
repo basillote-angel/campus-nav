@@ -28,6 +28,9 @@ class FoundItem extends Model
 		'rejected_at',
 		'rejected_by',
 		'rejection_reason',
+		'collection_deadline',
+		'collected_at',
+		'collected_by',
 	];
 
 	protected $casts = [
@@ -35,6 +38,8 @@ class FoundItem extends Model
 		'claimed_at' => 'datetime',
 		'approved_at' => 'datetime',
 		'rejected_at' => 'datetime',
+		'collection_deadline' => 'datetime',
+		'collected_at' => 'datetime',
 	];
 
 	public function user()
@@ -75,5 +80,26 @@ class FoundItem extends Model
 	public function claimedItems()
 	{
 		return $this->hasMany(ClaimedItem::class);
+	}
+
+	public function collectedBy()
+	{
+		return $this->belongsTo(User::class, 'collected_by');
+	}
+
+	/**
+	 * Check if collection deadline has passed
+	 */
+	public function isCollectionDeadlinePassed(): bool
+	{
+		return $this->collection_deadline && $this->collection_deadline->isPast() && !$this->collected_at;
+	}
+
+	/**
+	 * Check if item is collected
+	 */
+	public function isCollected(): bool
+	{
+		return $this->collected_at !== null;
 	}
 }

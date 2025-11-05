@@ -377,17 +377,59 @@ class ItemController extends Controller
                 return response()->json(['message' => 'Item not found'], 404);
             }
 
-            if ($item->status !== 'unclaimed') {
+            // Check if item already has a pending claim
+            if ($item->status === 'matched' && $item->claimed_by !== $user->id) {
+                // Item has another pending claim - create additional claim record
+                $claim = \App\Models\ClaimedItem::create([
+                    'found_item_id' => $item->id,
+                    'claimant_id' => $user->id,
+                    'message' => $request->input('message'),
+                    'status' => 'pending',
+                ]);
+
+                // Notify admin of multiple claims
+                $admins = \App\Models\User::where('role', 'admin')->get();
+                foreach ($admins as $admin) {
+                    \App\Jobs\SendNotificationJob::dispatch(
+                        $admin->id,
+                        '⚠️ Multiple Claims for Item',
+                        "Item '{$item->title}' has multiple pending claims. Please review.",
+                        'multipleClaims',
+                        $item->id
+                    );
+                }
+
+                return response()->json([
+                    'message' => 'Your claim has been submitted. Note: This item has other pending claims. Admin will review all claims.',
+                    'item' => $item,
+                    'claim' => $claim,
+                    'hasMultipleClaims' => true
+                ], 200);
+            }
+
+            if ($item->status !== 'unclaimed' && $item->status !== 'matched') {
                 return response()->json(['message' => 'Item is not available to claim'], 422);
             }
 
+            // First claim or same user reclaiming
             $item->claimed_by = $user->id;
             $item->claim_message = $request->input('message');
             $item->claimed_at = now();
             $item->status = 'matched';
             $item->save();
 
-            return response()->json($item, 200);
+            // Also create claim record for history
+            \App\Models\ClaimedItem::create([
+                'found_item_id' => $item->id,
+                'claimant_id' => $user->id,
+                'message' => $request->input('message'),
+                'status' => 'pending',
+            ]);
+
+            return response()->json([
+                'item' => $item,
+                'hasMultipleClaims' => false
+            ], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to submit claim', 'message' => $e->getMessage()], 500);
         }

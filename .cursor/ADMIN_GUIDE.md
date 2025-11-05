@@ -41,6 +41,10 @@ description: 👨‍💼 Admin Behavior Guide & Best Practices
    - ✅ Click "Approve" button
    - ✅ **Item status automatically changes to `returned`**
    - ✅ **User will receive notification automatically**
+   - ⚠️ **IMPORTANT:** User must physically visit admin office to collect item
+   - 📍 **Provide collection instructions:** Office location, hours, required ID
+   - 📅 **Set collection deadline:** Typically 7-14 days
+   - 🔔 **Send reminder notifications** before deadline
 
 3. **Reject Claims:**
    - ❌ If ownership cannot be verified
@@ -56,6 +60,11 @@ description: 👨‍💼 Admin Behavior Guide & Best Practices
 - 📝 **Be specific** in rejection reasons (e.g., "Unable to verify ownership - please provide additional proof")
 - ✅ **Approve promptly** when ownership is clear
 - 🔄 **Keep items updated** - status automatically changes to `returned` after approval
+- 🏢 **Prepare for physical collection:** Ensure approved items are accessible in admin office
+- 📍 **Provide clear collection instructions:** Office location, hours, required documents
+- 🆔 **Verify identity at pickup:** Always check user ID before handing over items
+- ✅ **Mark as collected:** Update status when user physically picks up item
+- 📅 **Monitor collection deadlines:** Follow up on uncollected items
 
 ---
 
@@ -434,4 +443,5 @@ description: 👨‍💼 Admin Behavior Guide & Best Practices
 
 **v1.0 (January 2025):**
 - Initial release
+
 

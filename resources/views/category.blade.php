@@ -1,16 +1,26 @@
 @extends('layouts.app')
 
 @section('content')
-    <h1 class="text-3xl font-bold text-blue-800 mb-6">Item Categories</h1>
+<div class="min-h-full bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <x-ui.page-header 
+        title="Item Categories"
+        description="Manage item categories for lost and found items"
+    >
+        <x-ui.button-primary 
+            id="add-category-btn"
+            type="button"
+            variant="primary"
+            size="md"
+            iconLeft="M12 4v16m8-8H4"
+        >
+            Add New Category
+        </x-ui.button-primary>
+    </x-ui.page-header>
 
-    <button 
-        id="add-category-btn"
-        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition">
-        + Add New Category
-    </button>
-
-    <!-- Search -->
-    <div class="mb-4">
+    {{-- Main Content Area --}}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        <!-- Search -->
+        <div class="mb-4">
         <input 
             type="text" 
             id="search-category"
@@ -41,9 +51,14 @@
                     />
                 </div>
 
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded w-full">
+                <x-ui.button-primary 
+                    type="submit"
+                    variant="primary"
+                    size="md"
+                    class="w-full"
+                >
                     Submit
-                </button>
+                </x-ui.button-primary>
             </form>
         </div>
     </div>
@@ -66,6 +81,9 @@
         const fetchCategories = () => {
             const search = searchInput.value;
             const query = new URLSearchParams({ search }).toString();
+            
+            // Show loading state
+            categoriesTable.innerHTML = '<div class="flex justify-center items-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#123A7D]"></div></div>';
 
             fetch(`{{ route('categories.index') }}?${query}`, {
                 headers: {
@@ -74,7 +92,10 @@
             })
             .then(res => res.text())
             .then(html => categoriesTable.innerHTML = html)
-            .catch(console.error);
+            .catch(error => {
+                console.error('Error fetching categories:', error);
+                categoriesTable.innerHTML = '<div class="text-center py-8 text-red-600">Error loading categories. Please try again.</div>';
+            });
         };
 
         searchInput.addEventListener('input', () => debounce(fetchCategories));
@@ -92,6 +113,11 @@
         addCategoryForm.addEventListener('submit', (e) => {
             e.preventDefault();
 
+            const submitBtn = addCategoryForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block"></span> Submitting...';
+
             const formData = new FormData(addCategoryForm);
 
             fetch(`{{ route('categories.store') }}`, {
@@ -103,15 +129,57 @@
             })
             .then(res => res.json())
             .then(data => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                
                 if (data.success) {
                     fetchCategories();
                     addCategoryModal.classList.add('hidden');
                     addCategoryForm.reset();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: 'Category added successfully',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    }
                 } else {
-                    alert('Error adding category.');
+                    let errorMessage = data.message || 'Error adding category.';
+                    if (data.errors) {
+                        const errorList = Object.values(data.errors).flat().join('<br>• ');
+                        errorMessage = `Please fix the following errors:<br>• ${errorList}`;
+                    }
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            html: errorMessage,
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        alert(errorMessage);
+                    }
                 }
             })
-            .catch(console.error);
+            .catch(error => {
+                console.error('Error:', error);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Connection Error',
+                        text: 'Failed to connect to server. Please check your connection and try again.',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    alert('Connection error. Please try again.');
+                }
+            });
         });
     </script>
+    </div>
+</div>
 @endsection

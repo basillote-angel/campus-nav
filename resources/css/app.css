@@ -57,9 +57,103 @@ html {
     min-height: calc(100vh - 100px);
 }
 
-/* Fix for mobile scrolling */
+/* Mobile Responsiveness Improvements */
 @media (max-width: 768px) {
     .content-wrapper {
         min-height: calc(100vh - 80px);
+    }
+    
+    /* Better table scrolling on mobile */
+    .table-container,
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    
+        /* Improve touch targets on mobile (only for interactive elements) */
+    button:not([class*="w-"]):not([class*="h-"]),
+    a:not([class*="w-"]):not([class*="h-"]),
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"] {
+        min-height: 44px; /* iOS recommended touch target */
+    }
+    
+    /* Better form spacing on mobile */
+    .space-y-4 > * + * {
+        margin-top: 1rem;
+    }
+    
+    /* Improve modal padding on mobile */
+    .modal-content,
+    [class*="px-6"] {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    /* Better card spacing on mobile */
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    /* Ensure sidebar is above Leaflet map and all other elements */
+    #sidebar {
+        z-index: 9999 !important;
+    }
+    
+    #sidebar.open {
+        z-index: 9999 !important;
+    }
+    
+    #sidebar-backdrop {
+        z-index: 9998 !important;
+    }
+    
+    /* Prevent Leaflet map from interfering with sidebar */
+    .leaflet-container,
+    .leaflet-pane,
+    .leaflet-map-pane,
+    .leaflet-tile-pane,
+    .leaflet-overlay-pane {
+        z-index: 1 !important;
+    }
+    
+    .leaflet-control-container {
+        z-index: 2 !important;
+    }
+}
+
+/* Tablet optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+    /* Ensure tables are scrollable on tablets */
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* Better table scrolling indicators */
+.table-scroll-hint {
+    position: relative;
+}
+
+.table-scroll-hint::after {
+    content: '← Scroll →';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: rgba(18, 58, 125, 0.9);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+@media (max-width: 768px) {
+    .table-scroll-hint:hover::after,
+    .table-scroll-hint:focus-within::after {
+        opacity: 1;
     }
 }

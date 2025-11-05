@@ -12,20 +12,24 @@
                         <p class="mt-1 text-sm text-gray-600">Explore and manage campus buildings and facilities</p>
                     </div>
                     <div class="flex flex-col sm:flex-row gap-3">
-                        {{-- UPDATED: Add Building Button with #123A7D color --}}
-                        <button onclick="openAddModal()" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-offset-2 transition ease-in-out duration-150" style="background-color: #123A7D; hover:background-color: #0E2F5E; focus:ring-color: #123A7D;">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                            </svg>
+                        <x-ui.button-primary 
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            iconLeft="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                            onclick="openAddModal()"
+                        >
                             Add Building
-                        </button>
-                        {{-- UPDATED: Manage Categories Button improved for contrast/cohesion --}}
-                        <button onclick="openCategoryModal()" class="inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white  uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition ease-in-out duration-150">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                            </svg>
+                        </x-ui.button-primary>
+                        <x-ui.button-primary 
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            iconLeft="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                            onclick="openCategoryModal()"
+                        >
                             Manage Categories
-                        </button>
+                        </x-ui.button-primary>
                     </div>
                 </div>
             </div>
@@ -384,19 +388,6 @@
         });
     });
 
-    // Close modal with Escape key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            const modals = ['addEditModal', 'viewModal', 'categoryModal'];
-            
-            modals.forEach(modalId => {
-                const modal = document.getElementById(modalId);
-                if (modal && !modal.classList.contains('hidden')) {
-                    closeModal(modalId);
-                }
-            });
-        }
-    });
 
     function confirmDelete(id) {
         Swal.fire({
