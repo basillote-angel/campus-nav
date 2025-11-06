@@ -565,20 +565,23 @@ class ItemController extends Controller
                       ->orWhere('location', 'LIKE', $kw);
                 });
             }
-            $items = $query->with(['category', 'user'])->latest('created_at')->get();
-            $items = $items->map(function ($i) {
-                return [
-                    'id' => $i->id,
-                    'name' => $i->title,
-                    'description' => $i->description,
-                    'location' => $i->location,
-                    'status' => $i->status,
-                    'type' => 'lost',
-                    'date' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
-                    'category' => optional($i->category)->name,
-                    'posted_by' => optional($i->user)->name,
-                    'created_at' => $i->created_at->format('Y-m-d H:i:s'),
-                ];
+            // Process in chunks to avoid memory issues with large datasets
+            $items = collect();
+            $query->with(['category', 'user'])->latest('created_at')->chunk(500, function ($chunk) use (&$items) {
+                $chunk->each(function ($i) use (&$items) {
+                    $items->push([
+                        'id' => $i->id,
+                        'name' => $i->title,
+                        'description' => $i->description,
+                        'location' => $i->location,
+                        'status' => $i->status,
+                        'type' => 'lost',
+                        'date' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
+                        'category' => optional($i->category)->name,
+                        'posted_by' => optional($i->user)->name,
+                        'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                    ]);
+                });
             });
         } else if ($type === 'found') {
             $query = FoundItem::query();
@@ -592,20 +595,23 @@ class ItemController extends Controller
                       ->orWhere('location', 'LIKE', $kw);
                 });
             }
-            $items = $query->with(['category', 'user'])->latest('created_at')->get();
-            $items = $items->map(function ($i) {
-                return [
-                    'id' => $i->id,
-                    'name' => $i->title,
-                    'description' => $i->description,
-                    'location' => $i->location,
-                    'status' => $i->status,
-                    'type' => 'found',
-                    'date' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
-                    'category' => optional($i->category)->name,
-                    'posted_by' => optional($i->user)->name,
-                    'created_at' => $i->created_at->format('Y-m-d H:i:s'),
-                ];
+            // Process in chunks to avoid memory issues with large datasets
+            $items = collect();
+            $query->with(['category', 'user'])->latest('created_at')->chunk(500, function ($chunk) use (&$items) {
+                $chunk->each(function ($i) use (&$items) {
+                    $items->push([
+                        'id' => $i->id,
+                        'name' => $i->title,
+                        'description' => $i->description,
+                        'location' => $i->location,
+                        'status' => $i->status,
+                        'type' => 'found',
+                        'date' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
+                        'category' => optional($i->category)->name,
+                        'posted_by' => optional($i->user)->name,
+                        'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                    ]);
+                });
             });
         } else {
             // All types - get both
@@ -638,34 +644,41 @@ class ItemController extends Controller
                 });
             }
             
-            $lostItems = $lostQuery->with(['category', 'user'])->get()->map(function ($i) {
-                return [
-                    'id' => $i->id,
-                    'name' => $i->title,
-                    'description' => $i->description,
-                    'location' => $i->location,
-                    'status' => $i->status,
-                    'type' => 'lost',
-                    'date' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
-                    'category' => optional($i->category)->name,
-                    'posted_by' => optional($i->user)->name,
-                    'created_at' => $i->created_at->format('Y-m-d H:i:s'),
-                ];
+            // Process in chunks to avoid memory issues with large datasets
+            $lostItems = collect();
+            $lostQuery->with(['category', 'user'])->chunk(500, function ($chunk) use (&$lostItems) {
+                $chunk->each(function ($i) use (&$lostItems) {
+                    $lostItems->push([
+                        'id' => $i->id,
+                        'name' => $i->title,
+                        'description' => $i->description,
+                        'location' => $i->location,
+                        'status' => $i->status,
+                        'type' => 'lost',
+                        'date' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
+                        'category' => optional($i->category)->name,
+                        'posted_by' => optional($i->user)->name,
+                        'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                    ]);
+                });
             });
             
-            $foundItems = $foundQuery->with(['category', 'user'])->get()->map(function ($i) {
-                return [
-                    'id' => $i->id,
-                    'name' => $i->title,
-                    'description' => $i->description,
-                    'location' => $i->location,
-                    'status' => $i->status,
-                    'type' => 'found',
-                    'date' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
-                    'category' => optional($i->category)->name,
-                    'posted_by' => optional($i->user)->name,
-                    'created_at' => $i->created_at->format('Y-m-d H:i:s'),
-                ];
+            $foundItems = collect();
+            $foundQuery->with(['category', 'user'])->chunk(500, function ($chunk) use (&$foundItems) {
+                $chunk->each(function ($i) use (&$foundItems) {
+                    $foundItems->push([
+                        'id' => $i->id,
+                        'name' => $i->title,
+                        'description' => $i->description,
+                        'location' => $i->location,
+                        'status' => $i->status,
+                        'type' => 'found',
+                        'date' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
+                        'category' => optional($i->category)->name,
+                        'posted_by' => optional($i->user)->name,
+                        'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                    ]);
+                });
             });
             
             $items = $lostItems->concat($foundItems)->sortByDesc('created_at')->values();

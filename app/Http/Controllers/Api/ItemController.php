@@ -5,15 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\LostItem;
 use App\Models\FoundItem;
-use App\Models\Item;
 use App\Services\AIService;
 use App\Jobs\ComputeItemMatches;
 use App\Jobs\SendNotificationJob;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Notification;
 
 class ItemController extends Controller
 {
@@ -24,13 +21,13 @@ class ItemController extends Controller
             // Merge lost and found views via simple union approach based on type filter
             $type = $request->query('type');
             if ($type === 'found') {
-                $query = FoundItem::query();
+                $query = FoundItem::with(['category', 'user']); // Add eager loading to prevent N+1
             } else if ($type === 'lost') {
-                $query = LostItem::query();
+                $query = LostItem::with(['category', 'user']); // Add eager loading to prevent N+1
             } else {
                 // default list latest across both
-                $lost = LostItem::query();
-                $found = FoundItem::query();
+                $lost = LostItem::with(['category', 'user']); // Add eager loading
+                $found = FoundItem::with(['category', 'user']); // Add eager loading
                 $lost->select(['id','user_id','category_id','title','description','image_path','location','date_lost as date','status','created_at','updated_at'])
                     ->addSelect(\DB::raw("'lost' as type"));
                 $found->select(['id','user_id','category_id','title','description','image_path','location','date_found as date','status','created_at','updated_at'])
@@ -264,16 +261,23 @@ class ItemController extends Controller
         }
     } 
 
-     public function matchesItems(AIService $aiService, $id)
+    public function matchesItems(AIService $aiService, $id)
     {
         try {
-            $item = Item::find($id);
+            // Try to find item in both LostItem and FoundItem tables
+            $item = LostItem::find($id);
+            $itemType = 'lost';
+            
+            if (!$item) {
+                $item = FoundItem::find($id);
+                $itemType = 'found';
+            }
 
             if (!$item) {
                 return response()->json(['message' => 'Item not found'], 404);
             }
 
-            if ($item instanceof LostItem) {
+            if ($itemType === 'lost') {
                 $candidateItems = FoundItem::where('status','unclaimed')->get();
                 $matches = $aiService->matchLostAndFound($item, $candidateItems->all(), FoundItem::class);
             } else {
@@ -314,12 +318,17 @@ class ItemController extends Controller
                 return response()->json([], 200);
             }
 
-            // Candidates: all unclaimed found items
-            $candidateFound = FoundItem::where('status', 'unclaimed')->get();
+            // Candidates: all unclaimed found items (with eager loading to prevent N+1)
+            $candidateFound = FoundItem::where('status', 'unclaimed')
+                ->with(['category', 'user'])
+                ->get();
 
             if ($candidateFound->isEmpty()) {
                 return response()->json([], 200);
             }
+
+            // Create a lookup map for O(1) access instead of N+1 queries
+            $candidateMap = $candidateFound->keyBy('id');
 
             // Aggregate matches across all lost items; keep highest score per found item
             $aggregated = [];
@@ -332,8 +341,9 @@ class ItemController extends Controller
                     if (!$itm || !isset($itm->id)) { continue; }
                     $id = $itm->id;
                     if (!isset($aggregated[$id]) || $aggregated[$id]['score'] < $score) {
+                        // Use the item from the map instead of querying database
                         $aggregated[$id] = [
-                            'item' => FoundItem::find($id),
+                            'item' => $candidateMap->get($id),
                             'score' => $score,
                         ];
                     }
@@ -436,103 +446,6 @@ class ItemController extends Controller
     }
 
     /**
-     * Admin/Staff approves the pending claim.
-     */
-    public function approveClaim(Request $request, $id)
-    {
-        try {
-            $user = Auth::user();
-            $role = $user->role ?? 'student';
-            if (!in_array($role, ['admin', 'staff'])) {
-                return response()->json(['message' => 'Forbidden'], 403);
-            }
-
-            $item = Item::find($id);
-            if (!$item) return response()->json(['message' => 'Item not found'], 404);
-
-            if ($item->status !== 'pending_approval') {
-                return response()->json(['message' => 'No pending claim to approve'], 422);
-            }
-
-            $item->approved_by = $user->id;
-            $item->approved_at = now();
-            $item->status = 'claimed';
-            $item->save();
-
-            // Send notification to claimant
-            if ($item->claimed_by) {
-                SendNotificationJob::dispatch(
-                    $item->claimed_by,
-                    'Claim Approved! ✅',
-                    "Your claim for '{$item->title}' has been approved. Please collect your item.",
-                    'claimStatusUpdate',
-                    $item->id
-                );
-            }
-
-            return response()->json($item, 200);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to approve claim', 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Admin/Staff rejects the pending claim with a reason.
-     */
-    public function rejectClaim(Request $request, $id)
-    {
-        try {
-            $user = Auth::user();
-            $role = $user->role ?? 'student';
-            if (!in_array($role, ['admin', 'staff'])) {
-                return response()->json(['message' => 'Forbidden'], 403);
-            }
-
-            $request->validate([
-                'reason' => 'required|string|max:1000'
-            ]);
-
-            $item = Item::find($id);
-            if (!$item) return response()->json(['message' => 'Item not found'], 404);
-
-            if ($item->status !== 'pending_approval') {
-                return response()->json(['message' => 'No pending claim to reject'], 422);
-            }
-
-            // Save claimant ID before clearing it
-            $claimantId = $item->claimed_by;
-            $itemTitle = $item->title;
-            $rejectionReason = $request->input('reason');
-
-            $item->rejected_by = $user->id;
-            $item->rejected_at = now();
-            $item->rejection_reason = $rejectionReason;
-
-            // Reset to unclaimed state
-            $item->status = 'unclaimed';
-            $item->claimed_by = null;
-            $item->claim_message = null;
-            $item->claimed_at = null;
-            $item->save();
-
-            // Send notification to claimant
-            if ($claimantId) {
-                SendNotificationJob::dispatch(
-                    $claimantId,
-                    'Claim Rejected',
-                    "Your claim for '{$itemTitle}' was rejected. Reason: {$rejectionReason}",
-                    'claimStatusUpdate',
-                    $item->id
-                );
-            }
-
-            return response()->json($item, 200);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to reject claim', 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
      * Admin/Staff: enqueue AI matching for a specific item id.
      * Optional body: { "type": "lost"|"found" } to disambiguate.
      */
@@ -622,6 +535,8 @@ class ItemController extends Controller
 
     /**
      * Batch AI matching for a list of item IDs (admin/staff only)
+     * Expects: { "itemIds": [1,2,3], "types": ["lost","found","lost"], ... }
+     * OR: { "lostItemIds": [1,2], "foundItemIds": [3,4], ... }
      */
     public function batchMatch(Request $request, AIService $aiService)
     {
@@ -633,8 +548,14 @@ class ItemController extends Controller
             }
 
             $request->validate([
-                'itemIds' => 'required|array|min:1',
+                'itemIds' => 'nullable|array|min:1',
                 'itemIds.*' => 'integer',
+                'types' => 'nullable|array',
+                'types.*' => 'in:lost,found',
+                'lostItemIds' => 'nullable|array',
+                'lostItemIds.*' => 'integer',
+                'foundItemIds' => 'nullable|array',
+                'foundItemIds.*' => 'integer',
                 'topK' => 'nullable|integer|min:1|max:50',
                 'threshold' => 'nullable|numeric|min:0|max:1',
             ]);
@@ -642,24 +563,83 @@ class ItemController extends Controller
             $topK = (int)($request->input('topK', config('services.navistfind_ai.top_k', 10)));
             $threshold = (float)($request->input('threshold', config('services.navistfind_ai.threshold', 0.6)));
 
-            $items = Item::whereIn('id', $request->itemIds)->get();
+            // Collect all items from both tables
+            $items = collect();
+            
+            // Support both formats: itemIds+types or separate arrays
+            if ($request->has('lostItemIds') || $request->has('foundItemIds')) {
+                if ($request->has('lostItemIds')) {
+                    $lostItems = LostItem::whereIn('id', $request->lostItemIds)->get();
+                    foreach ($lostItems as $item) {
+                        $items->push(['item' => $item, 'type' => 'lost']);
+                    }
+                }
+                if ($request->has('foundItemIds')) {
+                    $foundItems = FoundItem::whereIn('id', $request->foundItemIds)->get();
+                    foreach ($foundItems as $item) {
+                        $items->push(['item' => $item, 'type' => 'found']);
+                    }
+                }
+            } else if ($request->has('itemIds')) {
+                $itemIds = $request->itemIds;
+                $types = $request->input('types', []);
+                
+                // Fetch items based on provided types
+                foreach ($itemIds as $index => $itemId) {
+                    $type = $types[$index] ?? null;
+                    if ($type === 'lost') {
+                        $item = LostItem::find($itemId);
+                        if ($item) {
+                            $items->push(['item' => $item, 'type' => 'lost']);
+                        }
+                    } else if ($type === 'found') {
+                        $item = FoundItem::find($itemId);
+                        if ($item) {
+                            $items->push(['item' => $item, 'type' => 'found']);
+                        }
+                    } else {
+                        // Auto-detect: try found first, then lost
+                        $item = FoundItem::find($itemId);
+                        if ($item) {
+                            $items->push(['item' => $item, 'type' => 'found']);
+                        } else {
+                            $item = LostItem::find($itemId);
+                            if ($item) {
+                                $items->push(['item' => $item, 'type' => 'lost']);
+                            }
+                        }
+                    }
+                }
+            }
+
             if ($items->isEmpty()) {
                 return response()->json([], 200);
             }
 
             $results = [];
-            foreach ($items as $ref) {
-                $typeFilter = $ref->type === 'lost' ? 'found' : 'lost';
-                $candidates = Item::where('type', $typeFilter)
-                    ->where('status', 'unclaimed')
-                    ->where('id', '!=', $ref->id)
-                    ->latest('created_at')
-                    ->limit(200)
-                    ->get();
+            foreach ($items as $entry) {
+                $ref = $entry['item'];
+                $refType = $entry['type'];
+                
+                $candidates = collect();
+                if ($refType === 'lost') {
+                    $candidates = FoundItem::where('status', 'unclaimed')
+                        ->where('id', '!=', $ref->id)
+                        ->latest('created_at')
+                        ->limit(200)
+                        ->get();
+                } else {
+                    $candidates = LostItem::where('status', 'open')
+                        ->where('id', '!=', $ref->id)
+                        ->latest('created_at')
+                        ->limit(200)
+                        ->get();
+                }
 
                 $matches = [];
                 if ($candidates->isNotEmpty()) {
-                    $raw = $aiService->matchLostAndFound($ref, $candidates->all());
+                    $candidateClass = $refType === 'lost' ? FoundItem::class : LostItem::class;
+                    $raw = $aiService->matchLostAndFound($ref, $candidates->all(), $candidateClass);
                     $filtered = array_values(array_filter($raw, function ($m) use ($threshold) {
                         return isset($m['score']) && $m['score'] >= $threshold && isset($m['item']);
                     }));
@@ -669,6 +649,7 @@ class ItemController extends Controller
 
                 $results[] = [
                     'referenceId' => $ref->id,
+                    'referenceType' => $refType,
                     'matches' => $matches,
                 ];
             }

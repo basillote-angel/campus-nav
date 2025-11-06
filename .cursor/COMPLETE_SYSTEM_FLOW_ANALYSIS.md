@@ -38,7 +38,7 @@
 │       • Category                        │
 │       • Location lost                   │
 │       • Date lost                       │
-│       • Image (optional)                │
+│                │
 └──────────────┬──────────────────────────┘
                │
                ▼
@@ -84,7 +84,6 @@
 ┌─────────────────────────────────────────┐
 │  7. User Clicks on Recommended Item     │
 │     - Views item details:               │
-│       • Item image                      │
 │       • Description                     │
 │       • Category                        │
 │       • Location found                  │

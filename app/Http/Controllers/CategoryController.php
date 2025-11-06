@@ -9,37 +9,49 @@ class CategoryController extends Controller
 {
     /**
      * Display a listing of the resource.
+     * Returns JSON for API/modal usage, or redirects if accessed directly.
      */
     public function index(Request $request)
     {
-       $categories = Category::query()
-        ->when($request->search, fn($q) => $q->where('name', 'like', '%' . $request->search . '%'))
-        ->latest()
-        ->paginate(10);
+        $categories = Category::query()
+            ->when($request->search, fn($q) => $q->where('name', 'like', '%' . $request->search . '%'))
+            ->latest()
+            ->get();
 
-    if ($request->ajax()) {
-        return view('categories.partials.table', compact('categories'))->render();
-    }
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json($categories, 200);
+        }
 
-    return view('categories.index', compact('categories'));
+        // If accessed directly via browser, redirect to dashboard
+        return redirect()->route('dashboard');
     }
 
     public function create()
     {
-        return view('categories.create');
+        // Categories are managed via modal, redirect to dashboard
+        return redirect()->route('dashboard');
     }
 
     public function store(Request $request)
     {
         $request->validate(['name' => 'required|unique:categories']);
-        Category::create($request->only('name'));
+        $category = Category::create($request->only('name'));
 
-        return redirect()->route('categories.index')->with('success', 'Category added.');
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true, 
+                'message' => 'Category added successfully',
+                'category' => $category
+            ], 200);
+        }
+
+        return redirect()->route('dashboard')->with('success', 'Category added.');
     }
 
     public function edit(Category $category)
     {
-        return view('categories.edit', compact('category'));
+        // Categories are managed via modal, redirect to dashboard
+        return redirect()->route('dashboard');
     }
 
     public function update(Request $request, Category $category)
@@ -47,13 +59,28 @@ class CategoryController extends Controller
         $request->validate(['name' => 'required|unique:categories,name,' . $category->id]);
         $category->update($request->only('name'));
 
-        return redirect()->route('categories.index')->with('success', 'Category updated.');
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Category updated successfully',
+                'category' => $category
+            ], 200);
+        }
+
+        return redirect()->route('dashboard')->with('success', 'Category updated.');
     }
 
     public function destroy(Category $category)
     {
         $category->delete();
 
-        return redirect()->route('categories.index')->with('success', 'Category deleted.');
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Category deleted successfully'
+            ], 200);
+        }
+
+        return redirect()->route('dashboard')->with('success', 'Category deleted.');
     }
 }

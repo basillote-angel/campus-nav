@@ -71,21 +71,37 @@ class DashboardController extends Controller
         });
         $matchSuccessGrowthPercent = round($matchSuccessRatePercent - $matchSuccessRateLastWeek, 1);
 
-        // Chart Data - Posts Over Time (Last 7 Days)
+        // Chart Data - Posts Over Time (Last 7 Days) - Optimized with single query using GROUP BY
         $postsOverTimeData = Cache::remember('dash.postsOverTimeData', $ttl, function() {
+            $startDate = now()->subDays(6)->startOfDay();
+            $endDate = now()->endOfDay();
+            
+            // Get lost items count grouped by date in single query
+            $lostCounts = LostItem::whereBetween('created_at', [$startDate, $endDate])
+                ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                ->groupBy('date')
+                ->pluck('count', 'date')
+                ->toArray();
+            
+            // Get found items count grouped by date in single query
+            $foundCounts = FoundItem::whereBetween('created_at', [$startDate, $endDate])
+                ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                ->groupBy('date')
+                ->pluck('count', 'date')
+                ->toArray();
+            
             $days = [];
             $lostData = [];
             $foundData = [];
             
+            // Build arrays with same structure as before
             for ($i = 6; $i >= 0; $i--) {
                 $date = now()->subDays($i);
+                $dateKey = $date->format('Y-m-d');
                 $days[] = $date->format('D');
                 
-                $lostCount = LostItem::whereDate('created_at', $date->format('Y-m-d'))->count();
-                $foundCount = FoundItem::whereDate('created_at', $date->format('Y-m-d'))->count();
-                
-                $lostData[] = $lostCount;
-                $foundData[] = $foundCount;
+                $lostData[] = $lostCounts[$dateKey] ?? 0;
+                $foundData[] = $foundCounts[$dateKey] ?? 0;
             }
             
             return [
@@ -192,6 +208,24 @@ class DashboardController extends Controller
                 break;
         }
 
+        // Optimized: Use GROUP BY instead of multiple queries in loop
+        $startDate = now()->subDays($days - 1)->startOfDay();
+        $endDate = now()->endOfDay();
+        
+        // Get lost items count grouped by date in single query
+        $lostCounts = LostItem::whereBetween('created_at', [$startDate, $endDate])
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date')
+            ->toArray();
+        
+        // Get found items count grouped by date in single query
+        $foundCounts = FoundItem::whereBetween('created_at', [$startDate, $endDate])
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date')
+            ->toArray();
+        
         $labels = [];
         $lostData = [];
         $foundData = [];
@@ -199,15 +233,14 @@ class DashboardController extends Controller
         // Determine format based on range
         $format = $days <= 7 ? 'D' : ($days <= 30 ? 'M d' : 'M d');
         
+        // Build arrays with same structure as before
         for ($i = $days - 1; $i >= 0; $i--) {
             $date = now()->subDays($i);
+            $dateKey = $date->format('Y-m-d');
             $labels[] = $date->format($format);
             
-            $lostCount = LostItem::whereDate('created_at', $date->format('Y-m-d'))->count();
-            $foundCount = FoundItem::whereDate('created_at', $date->format('Y-m-d'))->count();
-            
-            $lostData[] = $lostCount;
-            $foundData[] = $foundCount;
+            $lostData[] = $lostCounts[$dateKey] ?? 0;
+            $foundData[] = $foundCounts[$dateKey] ?? 0;
         }
         
         return response()->json([

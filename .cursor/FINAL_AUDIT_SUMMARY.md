@@ -200,7 +200,7 @@ The following tasks are **optional** and can be done later if needed:
 
 ### Performance Testing
 - [ ] Verify search debounce reduces API calls
-- [ ] Verify images lazy load correctly
+- [ ] Verify lazy load correctly
 - [ ] Verify charts load without blocking UI
 - [ ] Verify page load times acceptable
 
