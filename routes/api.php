@@ -61,7 +61,9 @@ Route::middleware(['auth:sanctum', ApiAuthMiddleware::class])->group(function ()
 
 	// Notifications
 	Route::get('/notifications', [ApiNotificationController::class, 'index']);
+	Route::get('/notifications/updates', [ApiNotificationController::class, 'getUpdates']);
 	Route::post('/notifications/{id}/read', [ApiNotificationController::class, 'markRead']);
+	Route::post('/notifications/mark-all-read', [ApiNotificationController::class, 'markAllRead']);
 
 	// Admin test send (optional)
 	Route::post('/notifications/test-send/{user}', function (\Illuminate\Http\Request $request, \App\Models\User $user) {

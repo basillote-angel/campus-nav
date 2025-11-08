@@ -5,11 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\FoundItem;
 use App\Models\ClaimedItem;
-use App\Notifications\ClaimApproved;
-use App\Notifications\ClaimRejected;
 use App\Jobs\SendNotificationJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class ClaimsController extends Controller
@@ -153,64 +152,73 @@ class ClaimsController extends Controller
 
     public function approve(Request $request, $id)
     {
-        $item = FoundItem::findOrFail($id);
-        if ($item->status !== 'matched') {
-            return back()->with('error', 'No pending claim to approve.');
-        }
-
-        // Calculate collection deadline (optional, informational only - not enforced)
-        $deadlineDays = (int) config('services.admin_office.collection_deadline_days', 7);
-        $collectionDeadline = Carbon::now()->addDays($deadlineDays);
-
-        // Update item status and set collection deadline (optional for reference only)
-        $item->approved_by = Auth::id();
-        $item->approved_at = now();
-        // Set deadline as informational only - not strictly enforced
-        $item->collection_deadline = $collectionDeadline;
-        $item->status = 'returned';
-        $item->save();
-
-        // Get collection details from config
-        $officeLocation = config('services.admin_office.location');
-        $officeHours = config('services.admin_office.office_hours');
-        $contactEmail = config('services.admin_office.contact_email');
-        $contactPhone = config('services.admin_office.contact_phone');
-
-        // Notify claimant with collection details
-        if ($item->claimedBy) {
-            // Database notification with full collection details
-            $item->claimedBy->notify(new ClaimApproved(
-                $item->id,
-                $item->title,
-                $collectionDeadline,
-                $officeLocation,
-                $officeHours,
-                $contactEmail,
-                $contactPhone
-            ));
-
-            // FCM push notification with collection info
-            $deadlineText = $collectionDeadline->format('F d, Y');
-            $notificationBody = "Your claim for '{$item->title}' was approved! Physical collection required at {$officeLocation}. Suggested date: {$deadlineText}. Bring valid ID.";
-            
-            SendNotificationJob::dispatch(
-                $item->claimedBy->id,
-                'Claim Approved! ✅',
-                $notificationBody,
-                'claimApproved',
-                $item->id
-            );
-
-            // Auto-close related LostItem if exists
-            $relatedLostItem = \App\Models\LostItem::where('user_id', $item->claimedBy->id)
-                ->where('status', 'open')
-                ->where('title', 'like', '%' . $item->title . '%')
-                ->first();
-            
-            if ($relatedLostItem) {
-                $relatedLostItem->status = 'closed';
-                $relatedLostItem->save();
+        try {
+            $item = FoundItem::with('claimedBy')->findOrFail($id);
+            if ($item->status !== 'matched') {
+                return back()->with('error', 'No pending claim to approve.');
             }
+
+            // Calculate collection deadline (optional, informational only - not enforced)
+            $deadlineDays = (int) config('services.admin_office.collection_deadline_days', 7);
+            $collectionDeadline = Carbon::now()->addDays($deadlineDays);
+
+            // Update item status and set collection deadline (optional for reference only)
+            $item->approved_by = Auth::id();
+            $item->approved_at = now();
+            // Set deadline as informational only - not strictly enforced
+            $item->collection_deadline = $collectionDeadline;
+            $item->status = 'returned';
+            $item->save();
+
+            // Get collection details from config
+            $officeLocation = config('services.admin_office.location', 'Admin Office');
+            $officeHours = config('services.admin_office.office_hours', 'Monday-Friday, 8:00 AM - 5:00 PM');
+            $contactEmail = config('services.admin_office.contact_email', 'admin@school.edu');
+            $contactPhone = config('services.admin_office.contact_phone', '(555) 123-4567');
+
+            // Notify claimant with collection details
+            if ($item->claimedBy) {
+                // Create comprehensive notification message with collection details
+                $deadlineText = $collectionDeadline->format('F d, Y');
+                $notificationBody = "Your claim for '{$item->title}' was approved! ✅\n\n";
+                $notificationBody .= "🏢 IMPORTANT: Physical collection required at admin office.\n\n";
+                $notificationBody .= "📍 Location: {$officeLocation}\n";
+                $notificationBody .= "⏰ Hours: {$officeHours}\n";
+                $notificationBody .= "💡 Suggested Collection: {$deadlineText}\n";
+                $notificationBody .= "🆔 Required: Bring valid ID (Student ID or Government ID)\n\n";
+                $notificationBody .= "📞 Questions? {$contactEmail} or {$contactPhone}";
+                
+                // Send notification via SendNotificationJob (creates AppNotification record + FCM push)
+                SendNotificationJob::dispatch(
+                    $item->claimedBy->id,
+                    'Claim Approved! ✅',
+                    $notificationBody,
+                    'claimApproved',
+                    $item->id
+                );
+
+                // Auto-close related LostItem if exists
+                $relatedLostItem = \App\Models\LostItem::where('user_id', $item->claimedBy->id)
+                    ->where('status', 'open')
+                    ->where('title', 'like', '%' . $item->title . '%')
+                    ->first();
+                
+                if ($relatedLostItem) {
+                    $relatedLostItem->status = 'closed';
+                    $relatedLostItem->save();
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Error approving claim: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'item_id' => $id ?? null,
+            ]);
+            
+            if ($request->expectsJson() || $request->isJson()) {
+                return response()->json(['success' => false, 'message' => 'Error approving claim: ' . $e->getMessage()], 500);
+            }
+            
+            return back()->with('error', 'Error approving claim: ' . $e->getMessage());
         }
 
         if ($request->expectsJson() || $request->isJson()) {
@@ -222,39 +230,57 @@ class ClaimsController extends Controller
 
     public function reject(Request $request, $id)
     {
-        $request->validate(['reason' => 'required|string|max:1000']);
+        try {
+            $request->validate(['reason' => 'required|string|max:1000']);
 
-        $item = FoundItem::findOrFail($id);
-        if ($item->status !== 'matched') {
-            if ($request->expectsJson() || $request->isJson()) {
-                return response()->json(['success' => false, 'message' => 'No pending claim to reject.'], 400);
+            $item = FoundItem::with('claimedBy')->findOrFail($id);
+            if ($item->status !== 'matched') {
+                if ($request->expectsJson() || $request->isJson()) {
+                    return response()->json(['success' => false, 'message' => 'No pending claim to reject.'], 400);
+                }
+                return back()->with('error', 'No pending claim to reject.');
             }
-            return back()->with('error', 'No pending claim to reject.');
-        }
-        
-        $reason = $request->input('reason');
-        $item->rejected_by = Auth::id();
-        $item->rejected_at = now();
-        $item->rejection_reason = $reason;
-        $item->status = 'unclaimed';
-        $item->claimed_by = null;
-        $item->claim_message = null;
-        $item->claimed_at = null;
-        $item->save();
-
-        // Notify claimant if available
-        if ($item->claimedBy) {
-            // Database notification
-            $item->claimedBy->notify(new ClaimRejected($item->id, $item->title, $reason));
             
-            // FCM push notification
-            SendNotificationJob::dispatch(
-                $item->claimedBy->id,
-                'Claim Rejected',
-                "Your claim for '{$item->title}' was rejected. Reason: {$reason}",
-                'claimRejected',
-                $item->id
-            );
+            // Save claimant ID before clearing it
+            $claimantId = $item->claimed_by;
+            $itemTitle = $item->title;
+            
+            $reason = $request->input('reason');
+            $item->rejected_by = Auth::id();
+            $item->rejected_at = now();
+            $item->rejection_reason = $reason;
+            $item->status = 'unclaimed';
+            $item->claimed_by = null;
+            $item->claim_message = null;
+            $item->claimed_at = null;
+            $item->save();
+
+            // Notify claimant if available (use saved claimant ID)
+            if ($claimantId) {
+                $notificationBody = "Your claim for '{$itemTitle}' was rejected.\n\n";
+                $notificationBody .= "Reason: {$reason}\n\n";
+                $notificationBody .= "You can submit a new claim with more details or contact the admin office for clarification.";
+                
+                // Send notification via SendNotificationJob (creates AppNotification record + FCM push)
+                SendNotificationJob::dispatch(
+                    $claimantId,
+                    'Claim Rejected',
+                    $notificationBody,
+                    'claimRejected',
+                    $item->id
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error('Error rejecting claim: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'item_id' => $id ?? null,
+            ]);
+            
+            if ($request->expectsJson() || $request->isJson()) {
+                return response()->json(['success' => false, 'message' => 'Error rejecting claim: ' . $e->getMessage()], 500);
+            }
+            
+            return back()->with('error', 'Error rejecting claim: ' . $e->getMessage());
         }
 
         if ($request->expectsJson() || $request->isJson()) {

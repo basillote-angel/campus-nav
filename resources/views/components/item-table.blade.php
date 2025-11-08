@@ -400,35 +400,6 @@
                     </div>
                 </div>
                 
-                <div class="relative" id="bulk-category-container">
-                    <button 
-                        onclick="toggleBulkCategoryDropdown()"
-                        class="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#123A7D]/50 transition-all duration-200 flex items-center gap-2"
-                    >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                        </svg>
-                        Change Category
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div 
-                        id="bulk-category-dropdown"
-                        class="absolute bottom-full right-0 mb-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10 hidden max-h-64 overflow-y-auto"
-                    >
-                        @if(isset($categories) && $categories->count() > 0)
-                            @foreach($categories as $category)
-                                <button onclick="bulkUpdateCategory({{ $category->id }}, '{{ addslashes($category->name) }}')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                    {{ $category->name }}
-                                </button>
-                            @endforeach
-                        @else
-                            <div class="px-4 py-2 text-sm text-gray-500">No categories available</div>
-                        @endif
-                    </div>
-                </div>
-                
                 <button 
                     onclick="bulkExportSelected()"
                     class="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#123A7D]/50 transition-all duration-200 flex items-center gap-2"
@@ -518,13 +489,8 @@
     // Toggle Bulk Status Dropdown
     function toggleBulkStatusDropdown() {
         const dropdown = document.getElementById('bulk-status-dropdown');
-        const categoryDropdown = document.getElementById('bulk-category-dropdown');
         if (dropdown) {
             dropdown.classList.toggle('hidden');
-            // Close category dropdown if open
-            if (categoryDropdown) {
-                categoryDropdown.classList.add('hidden');
-            }
         }
     }
 
@@ -535,26 +501,7 @@
         if (statusContainer && statusDropdown && !statusContainer.contains(event.target)) {
             statusDropdown.classList.add('hidden');
         }
-        
-        const categoryContainer = document.getElementById('bulk-category-container');
-        const categoryDropdown = document.getElementById('bulk-category-dropdown');
-        if (categoryContainer && categoryDropdown && !categoryContainer.contains(event.target)) {
-            categoryDropdown.classList.add('hidden');
-        }
     });
-
-    // Toggle Bulk Category Dropdown
-    function toggleBulkCategoryDropdown() {
-        const dropdown = document.getElementById('bulk-category-dropdown');
-        const statusDropdown = document.getElementById('bulk-status-dropdown');
-        if (dropdown) {
-            dropdown.classList.toggle('hidden');
-            // Close status dropdown if open
-            if (statusDropdown) {
-                statusDropdown.classList.add('hidden');
-            }
-        }
-    }
 
     // Bulk Update Status
     function bulkUpdateStatus(newStatus) {
@@ -628,80 +575,6 @@
         
         // Close dropdown
         document.getElementById('bulk-status-dropdown').classList.add('hidden');
-    }
-
-    // Bulk Update Category
-    function bulkUpdateCategory(categoryId, categoryName) {
-        const checkboxes = document.querySelectorAll('.item-checkbox:checked');
-        const selectedIds = Array.from(checkboxes).map(cb => {
-            return {
-                id: cb.value,
-                type: cb.dataset.itemType
-            };
-        });
-        
-        if (selectedIds.length === 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'No items selected',
-                text: 'Please select at least one item.',
-            });
-            return;
-        }
-        
-        Swal.fire({
-            title: `Change category to "${categoryName}"?`,
-            text: `This will update ${selectedIds.length} item(s).`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#123A7D',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Yes, update category',
-            cancelButtonText: 'Cancel',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Perform bulk category update via AJAX
-                fetch('{{ route("items.bulkUpdate") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    body: JSON.stringify({
-                        items: selectedIds,
-                        action: 'category',
-                        value: categoryId
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Category updated!',
-                            text: `Successfully updated ${data.count} item(s).`,
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-                        clearSelection();
-                        setTimeout(() => window.location.reload(), 2000);
-                    } else {
-                        throw new Error(data.message || 'Update failed');
-                    }
-                })
-                .catch(error => {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: error.message || 'Failed to update category. Please try again.',
-                    });
-                });
-            }
-        });
-        
-        // Close dropdown
-        document.getElementById('bulk-category-dropdown').classList.add('hidden');
     }
 
     // Bulk Delete Selected

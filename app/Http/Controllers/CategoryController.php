@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use App\Models\Category;
 
 class CategoryController extends Controller
@@ -37,6 +38,9 @@ class CategoryController extends Controller
         $request->validate(['name' => 'required|unique:categories']);
         $category = Category::create($request->only('name'));
 
+        // Clear categories cache
+        Cache::forget('categories.list');
+
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true, 
@@ -59,6 +63,9 @@ class CategoryController extends Controller
         $request->validate(['name' => 'required|unique:categories,name,' . $category->id]);
         $category->update($request->only('name'));
 
+        // Clear categories cache
+        Cache::forget('categories.list');
+
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
@@ -73,6 +80,9 @@ class CategoryController extends Controller
     public function destroy(Category $category)
     {
         $category->delete();
+
+        // Clear categories cache
+        Cache::forget('categories.list');
 
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([

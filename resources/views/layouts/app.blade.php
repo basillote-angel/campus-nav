@@ -74,6 +74,11 @@
     });
     </script>
     
+    {{-- Real-time Notifications Script --}}
+    @if(auth()->check() && auth()->user()->role === 'admin')
+        <script src="{{ asset('js/realtime-notifications.js') }}"></script>
+    @endif
+    
     {{-- Scripts Stack for page-specific JavaScript --}}
     @stack('scripts')
 </body>

@@ -26,9 +26,10 @@ class ProfileController extends Controller
     public function postedItems(AIService $aiService) {
         $userId = Auth::id();
 
+        // Use eager loading to prevent N+1 queries
         $postedItems = collect()
-            ->merge(LostItem::where('user_id', $userId)->get()->map(fn($i) => ['type'=>'lost','model'=>$i]))
-            ->merge(FoundItem::where('user_id', $userId)->get()->map(fn($i) => ['type'=>'found','model'=>$i]));
+            ->merge(LostItem::where('user_id', $userId)->with(['category', 'user'])->get()->map(fn($i) => ['type'=>'lost','model'=>$i]))
+            ->merge(FoundItem::where('user_id', $userId)->with(['category', 'user'])->get()->map(fn($i) => ['type'=>'found','model'=>$i]));
         
         if ($postedItems->isEmpty()) {
             return response()->json([], 200);

@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use App\Jobs\ComputeItemMatches;
@@ -18,8 +19,10 @@ class ItemController extends Controller
     public function index(Request $request) {
         $type = $request->query('type', ''); // default to all types
 
-        // Get categories for filter dropdown
-        $categories = Category::orderBy('name')->get(['id', 'name']);
+        // Get categories for filter dropdown (cached for 1 hour)
+        $categories = Cache::remember('categories.list', now()->addHour(), function () {
+            return Category::orderBy('name')->get(['id', 'name']);
+        });
         
         // Get sort parameters
         $sortColumn = $request->query('sort', 'created_at');
@@ -50,12 +53,27 @@ class ItemController extends Controller
             }
 
             if ($request->filled('search')) {
-                $kw = '%' . $request->search . '%';
-                $query->where(function ($q) use ($kw) {
-                    $q->where('title', 'LIKE', $kw)
-                      ->orWhere('description', 'LIKE', $kw)
-                      ->orWhere('location', 'LIKE', $kw);
-                });
+                $searchTerm = trim($request->search);
+                $kw = '%' . $searchTerm . '%';
+                $dbDriver = DB::connection()->getDriverName();
+                
+                // Use full-text search for MySQL/MariaDB (3+ chars), fall back to LIKE for SQLite
+                $useFullText = (strlen($searchTerm) >= 3) && in_array($dbDriver, ['mysql', 'mariadb']);
+                
+                if ($useFullText) {
+                    // Use full-text search for better performance on indexed columns (MySQL/MariaDB only)
+                    $query->where(function ($q) use ($searchTerm, $kw) {
+                        $q->whereRaw('MATCH(title, description) AGAINST(? IN BOOLEAN MODE)', [$searchTerm])
+                          ->orWhere('location', 'like', $kw);
+                    });
+                } else {
+                    // Fall back to LIKE for short search terms or SQLite
+                    $query->where(function ($q) use ($kw) {
+                        $q->where('title', 'LIKE', $kw)
+                          ->orWhere('description', 'LIKE', $kw)
+                          ->orWhere('location', 'LIKE', $kw);
+                    });
+                }
             }
 
             // Advanced filters
@@ -112,12 +130,27 @@ class ItemController extends Controller
             }
 
             if ($request->filled('search')) {
-                $kw = '%' . $request->search . '%';
-                $query->where(function ($q) use ($kw) {
-                    $q->where('title', 'LIKE', $kw)
-                      ->orWhere('description', 'LIKE', $kw)
-                      ->orWhere('location', 'LIKE', $kw);
-                });
+                $searchTerm = trim($request->search);
+                $kw = '%' . $searchTerm . '%';
+                $dbDriver = DB::connection()->getDriverName();
+                
+                // Use full-text search for MySQL/MariaDB (3+ chars), fall back to LIKE for SQLite
+                $useFullText = (strlen($searchTerm) >= 3) && in_array($dbDriver, ['mysql', 'mariadb']);
+                
+                if ($useFullText) {
+                    // Use full-text search for better performance on indexed columns (MySQL/MariaDB only)
+                    $query->where(function ($q) use ($searchTerm, $kw) {
+                        $q->whereRaw('MATCH(title, description) AGAINST(? IN BOOLEAN MODE)', [$searchTerm])
+                          ->orWhere('location', 'like', $kw);
+                    });
+                } else {
+                    // Fall back to LIKE for short search terms or SQLite
+                    $query->where(function ($q) use ($kw) {
+                        $q->where('title', 'LIKE', $kw)
+                          ->orWhere('description', 'LIKE', $kw)
+                          ->orWhere('location', 'LIKE', $kw);
+                    });
+                }
             }
 
             // Advanced filters
@@ -208,17 +241,36 @@ class ItemController extends Controller
                 ]);
 
             if ($request->filled('search')) {
-                $kw = '%' . $request->search . '%';
-                $lost->where(function ($q) use ($kw) {
-                    $q->where('lost_items.title', 'like', $kw)
-                      ->orWhere('lost_items.description', 'like', $kw)
-                      ->orWhere('lost_items.location', 'like', $kw);
-                });
-                $found->where(function ($q) use ($kw) {
-                    $q->where('found_items.title', 'like', $kw)
-                      ->orWhere('found_items.description', 'like', $kw)
-                      ->orWhere('found_items.location', 'like', $kw);
-                });
+                $searchTerm = trim($request->search);
+                $kw = '%' . $searchTerm . '%';
+                $dbDriver = DB::connection()->getDriverName();
+                
+                // Use full-text search for MySQL/MariaDB (3+ chars), fall back to LIKE for SQLite
+                $useFullText = (strlen($searchTerm) >= 3) && in_array($dbDriver, ['mysql', 'mariadb']);
+                
+                if ($useFullText) {
+                    // Use full-text search for better performance on indexed columns (MySQL/MariaDB only)
+                    $lost->where(function ($q) use ($searchTerm, $kw) {
+                        $q->whereRaw('MATCH(lost_items.title, lost_items.description) AGAINST(? IN BOOLEAN MODE)', [$searchTerm])
+                          ->orWhere('lost_items.location', 'like', $kw);
+                    });
+                    $found->where(function ($q) use ($searchTerm, $kw) {
+                        $q->whereRaw('MATCH(found_items.title, found_items.description) AGAINST(? IN BOOLEAN MODE)', [$searchTerm])
+                          ->orWhere('found_items.location', 'like', $kw);
+                    });
+                } else {
+                    // Fall back to LIKE for short search terms or SQLite
+                    $lost->where(function ($q) use ($kw) {
+                        $q->where('lost_items.title', 'like', $kw)
+                          ->orWhere('lost_items.description', 'like', $kw)
+                          ->orWhere('lost_items.location', 'like', $kw);
+                    });
+                    $found->where(function ($q) use ($kw) {
+                        $q->where('found_items.title', 'like', $kw)
+                          ->orWhere('found_items.description', 'like', $kw)
+                          ->orWhere('found_items.location', 'like', $kw);
+                    });
+                }
             }
 
             if ($request->filled('status')) {
@@ -358,17 +410,25 @@ class ItemController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // Determine item type first to validate status correctly
+        $originalType = $request->input('originalType', $request->type);
+        
+        // Validate status based on item type
+        $statusValidation = $originalType === 'lost' 
+            ? 'nullable|in:open,matched,closed'
+            : 'nullable|in:unclaimed,matched,returned';
+
         $request->validate([
             'title' => 'required|string',
             'category_id' => 'nullable|integer|exists:categories,id',
             'description' => 'required|string',
             'type' => 'required|in:lost,found',
+            'status' => $statusValidation,
             'location' => 'nullable|string',
             'date' => 'nullable|date',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
         ]);
 
-        $originalType = $request->input('originalType', $request->type);
         $model = $originalType === 'lost' ? (LostItem::findOrFail($id)) : (FoundItem::findOrFail($id));
         $payload = [
             'title' => $request->title,
@@ -376,6 +436,11 @@ class ItemController extends Controller
             'description' => $request->description,
             'location' => $request->location,
         ];
+        
+        // Add status if provided
+        if ($request->filled('status')) {
+            $payload['status'] = $request->status;
+        }
         
         if ($request->filled('date')) {
             if ($request->type === 'lost') {

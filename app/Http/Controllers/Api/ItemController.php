@@ -382,7 +382,7 @@ class ItemController extends Controller
                 'contactInfo' => 'nullable|string|max:255',
             ]);
 
-            $item = FoundItem::find($id);
+            $item = FoundItem::with('category')->find($id);
             if (!$item) {
                 return response()->json(['message' => 'Item not found'], 404);
             }
@@ -435,6 +435,25 @@ class ItemController extends Controller
                 'message' => $request->input('message'),
                 'status' => 'pending',
             ]);
+
+            // Notify all admins about the new claim
+            $admins = \App\Models\User::where('role', 'admin')->get();
+            $claimant = $user;
+            $claimMessagePreview = strlen($item->claim_message) > 100 
+                ? substr($item->claim_message, 0, 100) . '...' 
+                : $item->claim_message;
+            
+            $categoryName = $item->category ? $item->category->name : 'Unknown';
+
+            foreach ($admins as $admin) {
+                \App\Jobs\SendNotificationJob::dispatch(
+                    $admin->id,
+                    '🆕 New Claim Submitted',
+                    "{$claimant->name} ({$claimant->email}) claimed item '{$item->title}'. Category: {$categoryName}. Location: {$item->location}. Message: {$claimMessagePreview}",
+                    'newClaim',
+                    $item->id
+                );
+            }
 
             return response()->json([
                 'item' => $item,

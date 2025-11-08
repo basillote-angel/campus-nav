@@ -41,6 +41,44 @@ class NotificationController extends Controller
 
         return response()->noContent();
     }
+
+    /**
+     * Get real-time notification updates (for polling)
+     * Returns unread count and recent notifications
+     */
+    public function getUpdates(Request $request)
+    {
+        $user = $request->user();
+        
+        $unreadCount = AppNotification::where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->count();
+
+        // Get recent unread notifications (last 10)
+        $recentNotifications = AppNotification::where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'unread_count' => $unreadCount,
+            'recent_notifications' => NotificationResource::collection($recentNotifications),
+            'timestamp' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Mark all notifications as read
+     */
+    public function markAllRead(Request $request)
+    {
+        AppNotification::where('user_id', $request->user()->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return response()->json(['message' => 'All notifications marked as read']);
+    }
 }
 
 
