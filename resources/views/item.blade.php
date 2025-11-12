@@ -17,11 +17,11 @@
             id="export-dropdown"
             :routes="[
                 'csv' => route('items.export', array_merge(request()->query(), ['format' => 'csv'])),
-                'pdf' => route('items.export', array_merge(request()->query(), ['format' => 'pdf']))
+              
             ]"
             :labels="[
                 'csv' => 'Export Items (CSV)',
-                'pdf' => 'Export Items (PDF)'
+              
             ]"
         />
         
