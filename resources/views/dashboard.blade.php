@@ -22,12 +22,12 @@
                         :routes="[
                             'csv' => route('dashboard.export', ['format' => 'csv']),
                             'csv-activity' => route('dashboard.export', ['format' => 'csv', 'type' => 'activity']),
-                            'pdf' => route('dashboard.export', ['format' => 'pdf'])
+                           
                         ]"
                         :labels="[
                             'csv' => 'Export Analytics (CSV)',
                             'csv-activity' => 'Export Activity Log (CSV)',
-                            'pdf' => 'Export Dashboard (PDF)'
+                            
                         ]"
                     />
                 </div>

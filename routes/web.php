@@ -14,7 +14,7 @@ use App\Http\Controllers\Admin\ClaimsController;
 
 Route::get('/', function () {
     return view('welcome');
-});
+})->name('welcome');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -29,6 +29,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/users/{id}/edit', [UserController::class, 'editView'])->name('users.edit-view'); // Edit view
         Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
+        Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
         
         // Redirect old notifications route to claims management
         Route::get('/notifications', function() {
@@ -57,7 +59,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
         Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->name('profile.changePassword');
-        Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+        
         
         // Categories CRUD
         Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');

@@ -19,6 +19,9 @@
 ::-webkit-scrollbar-track {
     background: #f1f5f9;
 }
+html {
+    scroll-behavior: smooth;
+}
 
 ::-webkit-scrollbar-thumb {
     background: #cbd5e1;
@@ -157,3 +160,35 @@ html {
         opacity: 1;
     }
 }
+/* ========= START: FOOTER CSS ========= */
+/* Adds the styles for the new footer */
+
+/* --- Section 1: Call to Action (Green Area) --- */
+.footer-cta {
+    background-color: var(--primary-green);
+    color: var(--white-text);
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.footer-cta p {
+    font-size: 1rem;
+    margin: 0;
+}
+
+.footer-cta h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 10px 0 15px;
+}
+
+.footer-cta .cta-description {
+    font-size: 1rem;
+    max-width: 600px;
+    margin: 0 auto 30px;
+    opacity: 0.9;
+}
+
+
+/* ========= END: FOOTER CSS ========= */
+

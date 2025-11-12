@@ -50,7 +50,8 @@
                             <p class="text-sm font-semibold text-[#1c2a40]">Carmen National High School</p>
                         </div>
                     </div>
-                    <a href="{{ url('/') }}" class="text-xs font-semibold text-[#123a7d] hover:underline">Back to welcome</a>
+                      
+                    <a href="{{ url('/') }}" class="text-xs font-semibold text-[#123a7d] hover:underline">Back to NavistFind Home</a>
                 </div>
 
                 <div class="rounded-[28px] border border-slate-200 bg-white/95 px-6 py-7 shadow-inner shadow-slate-200/40">
@@ -82,7 +83,7 @@
                                     id="email" 
                                     name="email" 
                                     required 
-                                    placeholder="admin@carmennhs.edu.ph"
+                                    placeholder="Enter your email"
                                     class="w-full rounded-2xl border border-slate-200 bg-[#f9fbff] py-3 pl-11 pr-4 text-sm text-[#1c2a40] shadow-inner shadow-slate-200 focus:border-[#123a7d] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#123a7d]/30 transition"
                                 >
                             </div>
@@ -97,7 +98,7 @@
                                     id="password" 
                                     name="password" 
                                     required 
-                                    placeholder="••••••••"
+                                    placeholder="Password"
                                     class="w-full rounded-2xl border border-slate-200 bg-[#f9fbff] py-3 pl-11 pr-12 text-sm text-[#1c2a40] shadow-inner shadow-slate-200 focus:border-[#123a7d] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#123a7d]/30 transition"
                                 >
                                 <button 
