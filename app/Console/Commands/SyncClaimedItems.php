@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\SyncClaimedItemsJob;
 use Illuminate\Console\Command;
 
 class SyncClaimedItems extends Command
@@ -18,13 +19,15 @@ class SyncClaimedItems extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+	protected $description = 'Send collection reminders and handle overdue claims.';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        //
+		SyncClaimedItemsJob::dispatch();
+
+		$this->info('Collection reminder sync dispatched.');
     }
 }

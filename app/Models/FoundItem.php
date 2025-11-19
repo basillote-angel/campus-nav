@@ -2,8 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Enums\ClaimStatus;
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
+use App\Models\ActivityLog;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class FoundItem extends Model
 {
@@ -23,14 +28,21 @@ class FoundItem extends Model
 		'claimed_by',
 		'claimed_at',
 		'claim_message',
+		'claimant_contact_name',
+		'claimant_contact_info',
 		'approved_at',
 		'approved_by',
 		'rejected_at',
 		'rejected_by',
 		'rejection_reason',
 		'collection_deadline',
+		'last_collection_reminder_at',
+		'collection_reminder_stage',
+		'overdue_notified_at',
+		'pending_sla_notified_at',
 		'collected_at',
 		'collected_by',
+		'collection_notes',
 	];
 
 	protected $casts = [
@@ -39,7 +51,11 @@ class FoundItem extends Model
 		'approved_at' => 'datetime',
 		'rejected_at' => 'datetime',
 		'collection_deadline' => 'datetime',
+		'last_collection_reminder_at' => 'datetime',
+		'overdue_notified_at' => 'datetime',
+		'pending_sla_notified_at' => 'datetime',
 		'collected_at' => 'datetime',
+		'status' => FoundItemStatus::class,
 	];
 
 	public function user()
@@ -82,6 +98,18 @@ class FoundItem extends Model
 		return $this->hasMany(ClaimedItem::class);
 	}
 
+	public function pendingClaims()
+	{
+		return $this->hasMany(ClaimedItem::class)->where('status', 'pending');
+	}
+
+	public function transitionLogs()
+	{
+		return $this->hasMany(ActivityLog::class, 'subject_id')
+			->where('subject_type', self::class)
+			->orderBy('created_at');
+	}
+
 	public function collectedBy()
 	{
 		return $this->belongsTo(User::class, 'collected_by');
@@ -100,6 +128,64 @@ class FoundItem extends Model
 	 */
 	public function isCollected(): bool
 	{
-		return $this->collected_at !== null;
+		return $this->status === FoundItemStatus::COLLECTED;
+	}
+
+	public function isClaimPending(): bool
+	{
+		return $this->status === FoundItemStatus::CLAIM_PENDING;
+	}
+
+	public function isClaimApproved(): bool
+	{
+		return $this->status === FoundItemStatus::CLAIM_APPROVED;
+	}
+
+	public function markStatus(FoundItemStatus $status): self
+	{
+		$this->status = $status;
+
+		return $this;
+	}
+
+	public function markClaimPending(?Carbon $claimedAt = null): self
+	{
+		$this->status = FoundItemStatus::CLAIM_PENDING;
+		$this->claimed_at = $claimedAt ?? now();
+
+		return $this;
+	}
+
+	public function markClaimApproved(?Carbon $deadline = null): self
+	{
+		$this->status = FoundItemStatus::CLAIM_APPROVED;
+		$this->collection_deadline = $deadline;
+
+		return $this;
+	}
+
+	public function markCollected(?Carbon $timestamp = null): self
+	{
+		$this->status = FoundItemStatus::COLLECTED;
+		$this->collected_at = $timestamp ?? now();
+
+		return $this;
+	}
+
+	protected static function booted(): void
+	{
+		static::updated(function (FoundItem $item) {
+			if ($item->status === FoundItemStatus::COLLECTED && $item->relationLoaded('claims')) {
+				$approvedClaim = $item->claims
+					->firstWhere(fn (ClaimedItem $claim) => $claim->status === ClaimStatus::APPROVED);
+
+				if ($approvedClaim && $approvedClaim->matched_lost_item_id) {
+					$lost = LostItem::find($approvedClaim->matched_lost_item_id);
+					if ($lost && $lost->status !== LostItemStatus::RESOLVED) {
+						$lost->markResolved()->save();
+					}
+				}
+			}
+		});
 	}
 }

@@ -145,66 +145,44 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                         </svg>
                                     </button>
+                                    @php
+                                        $statusGroups = [
+                                            'Lost Item Statuses' => [
+                                                'LOST_REPORTED' => 'Lost Reported',
+                                                'RESOLVED' => 'Resolved',
+                                            ],
+                                            'Found Item Statuses' => [
+                                                'FOUND_UNCLAIMED' => 'Found Unclaimed',
+                                                'CLAIM_PENDING' => 'Claim Pending',
+                                                'CLAIM_APPROVED' => 'Claim Approved',
+                                                'COLLECTED' => 'Collected',
+                                            ],
+                                        ];
+                                        $activeStatuses = (array) request()->get('status', []);
+                                    @endphp
                                     <div 
                                         id="status-dropdown"
                                         class="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto hidden"
                                     >
-                                        <div class="p-2 space-y-1">
-                                            <label class="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
-                                                <input 
-                                                    type="checkbox" 
-                                                    class="status-checkbox w-4 h-4 text-[#123A7D] border-gray-300 rounded focus:ring-[#123A7D]"
-                                                    value="open"
-                                                    data-status="Open"
-                                                    {{ in_array('open', (array)request()->get('status', [])) ? 'checked' : '' }}
-                                                    onchange="updateStatusSelection()"
-                                                />
-                                                <span class="ml-2 text-sm text-gray-700">Open</span>
-                                            </label>
-                                            <label class="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
-                                                <input 
-                                                    type="checkbox" 
-                                                    class="status-checkbox w-4 h-4 text-[#123A7D] border-gray-300 rounded focus:ring-[#123A7D]"
-                                                    value="unclaimed"
-                                                    data-status="Unclaimed"
-                                                    {{ in_array('unclaimed', (array)request()->get('status', [])) ? 'checked' : '' }}
-                                                    onchange="updateStatusSelection()"
-                                                />
-                                                <span class="ml-2 text-sm text-gray-700">Unclaimed</span>
-                                            </label>
-                                            <label class="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
-                                                <input 
-                                                    type="checkbox" 
-                                                    class="status-checkbox w-4 h-4 text-[#123A7D] border-gray-300 rounded focus:ring-[#123A7D]"
-                                                    value="matched"
-                                                    data-status="Matched"
-                                                    {{ in_array('matched', (array)request()->get('status', [])) ? 'checked' : '' }}
-                                                    onchange="updateStatusSelection()"
-                                                />
-                                                <span class="ml-2 text-sm text-gray-700">Matched</span>
-                                            </label>
-                                            <label class="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
-                                                <input 
-                                                    type="checkbox" 
-                                                    class="status-checkbox w-4 h-4 text-[#123A7D] border-gray-300 rounded focus:ring-[#123A7D]"
-                                                    value="returned"
-                                                    data-status="Returned"
-                                                    {{ in_array('returned', (array)request()->get('status', [])) ? 'checked' : '' }}
-                                                    onchange="updateStatusSelection()"
-                                                />
-                                                <span class="ml-2 text-sm text-gray-700">Returned</span>
-                                            </label>
-                                            <label class="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
-                                                <input 
-                                                    type="checkbox" 
-                                                    class="status-checkbox w-4 h-4 text-[#123A7D] border-gray-300 rounded focus:ring-[#123A7D]"
-                                                    value="closed"
-                                                    data-status="Closed"
-                                                    {{ in_array('closed', (array)request()->get('status', [])) ? 'checked' : '' }}
-                                                    onchange="updateStatusSelection()"
-                                                />
-                                                <span class="ml-2 text-sm text-gray-700">Closed</span>
-                                            </label>
+                                        <div class="p-2 space-y-4">
+                                            @foreach($statusGroups as $groupLabel => $options)
+                                                <div>
+                                                    <p class="px-2 text-xs font-semibold text-gray-500">{{ $groupLabel }}</p>
+                                                    @foreach($options as $value => $label)
+                                                        <label class="flex items-center px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                class="status-checkbox w-4 h-4 text-[#123A7D] border-gray-300 rounded focus:ring-[#123A7D]"
+                                                                value="{{ $value }}"
+                                                                data-status="{{ $label }}"
+                                                                {{ in_array($value, $activeStatuses) ? 'checked' : '' }}
+                                                                onchange="updateStatusSelection()"
+                                                            />
+                                                            <span class="ml-2 text-sm text-gray-700">{{ $label }}</span>
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            @endforeach
                                         </div>
                                     </div>
                                 </div>
@@ -358,19 +336,9 @@
                                 {{-- Category --}}
                                 <x-ui.select
                                     label="Category"
-                                    name="category"
+                                    name="category_id"
                                     placeholder="Select Category"
-                                    :options="[
-                                        'electronics' => 'Electronics',
-                                        'documents' => 'Documents',
-                                        'accessories' => 'Accessories',
-                                        'idOrCards' => 'ID or Cards',
-                                        'clothing' => 'Clothing',
-                                        'bagOrPouches' => 'Bag or Pouches',
-                                        'personalItems' => 'Personal Items',
-                                        'schoolSupplies' => 'School Supplies',
-                                        'others' => 'Others'
-                                    ]"
+                                    :options="$categories->pluck('name', 'id')"
                                     required
                                 />
 

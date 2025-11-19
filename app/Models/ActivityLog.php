@@ -15,6 +15,8 @@ class ActivityLog extends Model
 
 	protected $fillable = [
 		'user_id',
+		'subject_id',
+		'subject_type',
 		'action',
 		'details',
 		'ip_address',
@@ -23,10 +25,16 @@ class ActivityLog extends Model
 
 	protected $casts = [
 		'created_at' => 'datetime',
+		'details' => 'array',
 	];
 
 	public function user()
 	{
 		return $this->belongsTo(User::class);
+	}
+
+	public function subject()
+	{
+		return $this->morphTo();
 	}
 }

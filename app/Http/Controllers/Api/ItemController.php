@@ -2,15 +2,24 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ClaimStatus;
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
 use App\Http\Controllers\Controller;
-use App\Models\LostItem;
-use App\Models\FoundItem;
-use App\Services\AIService;
+use App\Http\Resources\FoundItemResource;
+use App\Http\Resources\LostItemResource;
 use App\Jobs\ComputeItemMatches;
 use App\Jobs\SendNotificationJob;
+use App\Models\ClaimedItem;
+use App\Models\FoundItem;
+use App\Models\LostItem;
+use App\Services\AIService;
+use App\Services\DomainEventService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ItemController extends Controller
 {
@@ -18,16 +27,29 @@ class ItemController extends Controller
     {
         try {
             $perPage = min(max((int) $request->query('perPage', 20), 1), 100);
+            $includeReturned = filter_var($request->query('includeReturned', false), FILTER_VALIDATE_BOOLEAN);
             // Merge lost and found views via simple union approach based on type filter
             $type = $request->query('type');
             if ($type === 'found') {
                 $query = FoundItem::with(['category', 'user']); // Add eager loading to prevent N+1
+                if (!$includeReturned) {
+                    $query->whereNotIn('status', [
+                        FoundItemStatus::COLLECTED->value,
+                        FoundItemStatus::CLAIM_APPROVED->value,
+                    ]);
+                }
             } else if ($type === 'lost') {
                 $query = LostItem::with(['category', 'user']); // Add eager loading to prevent N+1
             } else {
                 // default list latest across both
                 $lost = LostItem::with(['category', 'user']); // Add eager loading
                 $found = FoundItem::with(['category', 'user']); // Add eager loading
+                if (!$includeReturned) {
+                    $found->whereNotIn('status', [
+                        FoundItemStatus::COLLECTED->value,
+                        FoundItemStatus::CLAIM_APPROVED->value,
+                    ]);
+                }
                 $lost->select(['id','user_id','category_id','title','description','image_path','location','date_lost as date','status','created_at','updated_at'])
                     ->addSelect(\DB::raw("'lost' as type"));
                 $found->select(['id','user_id','category_id','title','description','image_path','location','date_found as date','status','created_at','updated_at'])
@@ -92,8 +114,11 @@ class ItemController extends Controller
 
     public function store(Request $request, AIService $aiService)
     {
+        // Ensure we always return JSON for API requests
+        $request->headers->set('Accept', 'application/json');
+        
         try {
-            $request->validate([
+            $validated = $request->validate([
                 'title' => 'required|string',
                 'category_id' => 'required|integer|exists:categories,id',
                 'description' => 'required|string',
@@ -101,6 +126,14 @@ class ItemController extends Controller
                 'location' => 'nullable|string',
                 'date' => 'nullable|date',
             ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        }
+
+        try {
 
             $userId = Auth::id();
             $user = Auth::user();
@@ -120,24 +153,24 @@ class ItemController extends Controller
             if ($request->type === 'lost') {
                 $item = LostItem::create([
                     'user_id' => $userId,
-                    'category_id' => $request->category_id,
-                    'title' => $request->title,
-                    'description' => $request->description,
+                    'category_id' => $validated['category_id'],
+                    'title' => $validated['title'],
+                    'description' => $validated['description'],
                     'image_path' => $request->image_path,
-                    'location' => $request->location,
-                    'date_lost' => $request->date ? Carbon::parse($request->date)->format('Y-m-d') : null,
-                    'status' => 'open',
+                    'location' => $validated['location'] ?? null,
+                    'date_lost' => isset($validated['date']) ? Carbon::parse($validated['date'])->format('Y-m-d') : null,
+                    'status' => LostItemStatus::LOST_REPORTED->value,
                 ]);
             } else {
                 $item = FoundItem::create([
                     'user_id' => $userId,
-                    'category_id' => $request->category_id,
-                    'title' => $request->title,
-                    'description' => $request->description,
+                    'category_id' => $validated['category_id'],
+                    'title' => $validated['title'],
+                    'description' => $validated['description'],
                     'image_path' => $request->image_path,
-                    'location' => $request->location,
-                    'date_found' => $request->date ? Carbon::parse($request->date)->format('Y-m-d') : null,
-                    'status' => 'unclaimed',
+                    'location' => $validated['location'] ?? null,
+                    'date_found' => isset($validated['date']) ? Carbon::parse($validated['date'])->format('Y-m-d') : null,
+                    'status' => FoundItemStatus::FOUND_UNCLAIMED->value,
                 ]);
             }
 
@@ -146,14 +179,61 @@ class ItemController extends Controller
                 : null;
 
             // Queue async matching instead of blocking the request
-            if ((bool) $request->boolean('include_matches', false)) {
+            $matchesQueued = (bool) $request->boolean('include_matches', false);
+            if ($matchesQueued) {
                 $refType = $request->type === 'lost' ? 'lost' : 'found';
                 ComputeItemMatches::dispatch($refType, $item->id);
             }
 
-            return response()->json([ 'item' => $item, 'matchesQueued' => (bool) $request->boolean('include_matches', false) ], 201);
+            try {
+                $this->loadItemRelations($item);
+            } catch (\Exception $e) {
+                \Log::warning('Failed to load item relations', [
+                    'item_id' => $item->id,
+                    'item_type' => $request->type,
+                    'error' => $e->getMessage()
+                ]);
+                // Continue without relations if loading fails
+            }
+
+            try {
+                return $this->respondWithItemResource(
+                    $item,
+                    201,
+                    [
+                        'matchesQueued' => $matchesQueued,
+                        'type' => $request->type,
+                    ]
+                );
+            } catch (\Exception $e) {
+                \Log::error('Failed to create resource response', [
+                    'item_id' => $item->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                // Return a simple JSON response if resource creation fails
+                return response()->json([
+                    'id' => $item->id,
+                    'title' => $item->title,
+                    'description' => $item->description,
+                    'status' => $item->status,
+                    'type' => $request->type,
+                    'meta' => [
+                        'matchesQueued' => $matchesQueued,
+                        'type' => $request->type,
+                    ]
+                ], 201);
+            }
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to create item', 'message' => $e->getMessage()], 500);
+            \Log::error('ITEM_CREATE_ERROR', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'userId' => Auth::id(),
+            ]);
+            return response()->json([
+                'error' => 'Failed to create item',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -175,8 +255,10 @@ class ItemController extends Controller
             if (!$item) {
                 return response()->json(['message' => 'Item not found'], 404);
             }
-    
-            return response()->json($item, 200);
+
+            $this->loadItemRelations($item);
+
+            return $this->resourceForModel($item);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to fetch items', 'message' => $e->getMessage()], 500);
         }
@@ -191,30 +273,74 @@ class ItemController extends Controller
                 return response()->json(['message' => 'Item not found'], 404);
             }
 
-            // Enforce role-based rules on updates to type as well
+            // Enforce role-based rules on updates to type/status
             $user = Auth::user();
             $role = $user->role ?? 'student';
             $isAdminOrStaff = in_array($role, ['admin', 'staff']);
 
-            if (!$isAdminOrStaff && $request->has('type') && $request->input('type') === 'found') {
+            if (!$isAdminOrStaff && ($request->has('type') && $request->input('type') === 'found')) {
                 return response()->json([
                     'message' => 'Only admin or staff can set type to found.'
                 ], 403);
             }
 
-            if ($item instanceof LostItem) {
-                $item->update($request->only(['title','category_id','description','location','date_lost','status']));
-            } else {
-                $item->update($request->only(['title','category_id','description','location','date_found','status']));
+            if (!$isAdminOrStaff && $request->has('status')) {
+                return response()->json([
+                    'message' => 'Only admin or staff can change item status.'
+                ], 403);
             }
 
-            // Queue async matching instead of blocking the request
-            if ((bool) $request->boolean('include_matches', false)) {
+            if ($item instanceof LostItem) {
+                $request->validate([
+                    'title' => 'sometimes|string',
+                    'category_id' => 'sometimes|integer|exists:categories,id',
+                    'description' => 'sometimes|string',
+                    'location' => 'sometimes|nullable|string',
+                    'date_lost' => 'sometimes|date',
+                    'status' => ['sometimes', Rule::in(LostItemStatus::values())],
+                ]);
+
+                $payload = $request->only(['title','category_id','description','location','date_lost','status']);
+                if (!empty($payload['date_lost'])) {
+                    $payload['date_lost'] = Carbon::parse($payload['date_lost'])->format('Y-m-d');
+                }
+                $item->update($payload);
+            } else {
+                $request->validate([
+                    'title' => 'sometimes|string',
+                    'category_id' => 'sometimes|integer|exists:categories,id',
+                    'description' => 'sometimes|string',
+                    'location' => 'sometimes|nullable|string',
+                    'date_found' => 'sometimes|date',
+                    'collection_deadline' => 'sometimes|date',
+                    'status' => ['sometimes', Rule::in(FoundItemStatus::values())],
+                ]);
+
+                $payload = $request->only(['title','category_id','description','location','date_found','status','collection_deadline']);
+                if (!empty($payload['date_found'])) {
+                    $payload['date_found'] = Carbon::parse($payload['date_found'])->format('Y-m-d');
+                }
+                if (!empty($payload['collection_deadline'])) {
+                    $payload['collection_deadline'] = Carbon::parse($payload['collection_deadline'])->toDateTimeString();
+                }
+                $item->update($payload);
+            }
+
+            $matchesQueued = (bool) $request->boolean('include_matches', false);
+            if ($matchesQueued) {
                 $refType = $item instanceof LostItem ? 'lost' : 'found';
                 ComputeItemMatches::dispatch($refType, $item->id);
             }
 
-            return response()->json([ 'item' => $item, 'matchesQueued' => (bool) $request->boolean('include_matches', false) ], 200);
+            $this->loadItemRelations($item);
+
+            return $this->respondWithItemResource(
+                $item,
+                200,
+                [
+                    'matchesQueued' => $matchesQueued,
+                ]
+            );
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to update item', 'message' => $e->getMessage()], 500);
         }
@@ -278,10 +404,10 @@ class ItemController extends Controller
             }
 
             if ($itemType === 'lost') {
-                $candidateItems = FoundItem::where('status','unclaimed')->get();
+                $candidateItems = FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)->get();
                 $matches = $aiService->matchLostAndFound($item, $candidateItems->all(), FoundItem::class);
             } else {
-                $candidateItems = LostItem::where('status','open')->get();
+                $candidateItems = LostItem::where('status', LostItemStatus::LOST_REPORTED->value)->get();
                 $matches = $aiService->matchLostAndFound($item, $candidateItems->all(), LostItem::class);
             }
 
@@ -311,7 +437,7 @@ class ItemController extends Controller
 
             // Reference set: user's active lost items
             $lostItems = LostItem::where('user_id', $user->id)
-                ->where('status', 'open')
+                ->where('status', LostItemStatus::LOST_REPORTED->value)
                 ->get();
 
             if ($lostItems->isEmpty()) {
@@ -319,7 +445,7 @@ class ItemController extends Controller
             }
 
             // Candidates: all unclaimed found items (with eager loading to prevent N+1)
-            $candidateFound = FoundItem::where('status', 'unclaimed')
+            $candidateFound = FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)
                 ->with(['category', 'user'])
                 ->get();
 
@@ -380,6 +506,7 @@ class ItemController extends Controller
                 'message' => 'required|string|max:2000',
                 'contactName' => 'nullable|string|max:255',
                 'contactInfo' => 'nullable|string|max:255',
+                'matchedLostItemId' => 'nullable|integer|exists:lost_items,id',
             ]);
 
             $item = FoundItem::with('category')->find($id);
@@ -387,78 +514,124 @@ class ItemController extends Controller
                 return response()->json(['message' => 'Item not found'], 404);
             }
 
-            // Check if item already has a pending claim
-            if ($item->status === 'matched' && $item->claimed_by !== $user->id) {
-                // Item has another pending claim - create additional claim record
-                $claim = \App\Models\ClaimedItem::create([
-                    'found_item_id' => $item->id,
-                    'claimant_id' => $user->id,
-                    'message' => $request->input('message'),
-                    'status' => 'pending',
-                ]);
+		if (!in_array($item->status, [FoundItemStatus::FOUND_UNCLAIMED, FoundItemStatus::CLAIM_PENDING], true)) {
+			return response()->json(['message' => 'Item is not available to claim'], 422);
+		}
 
-                // Notify admin of multiple claims
-                $admins = \App\Models\User::where('role', 'admin')->get();
-                foreach ($admins as $admin) {
-                    \App\Jobs\SendNotificationJob::dispatch(
-                        $admin->id,
-                        '⚠️ Multiple Claims for Item',
-                        "Item '{$item->title}' has multiple pending claims. Please review.",
-                        'multipleClaims',
-                        $item->id
-                    );
-                }
+		$hasActiveClaim = ClaimedItem::query()
+			->where('found_item_id', $item->id)
+			->where('claimant_id', $user->id)
+			->whereIn('status', [ClaimStatus::PENDING->value, ClaimStatus::APPROVED->value])
+			->exists();
 
-                return response()->json([
-                    'message' => 'Your claim has been submitted. Note: This item has other pending claims. Admin will review all claims.',
-                    'item' => $item,
-                    'claim' => $claim,
-                    'hasMultipleClaims' => true
-                ], 200);
-            }
+		if ($hasActiveClaim) {
+			return response()->json(['message' => 'You already have an active claim for this item.'], 422);
+		}
 
-            if ($item->status !== 'unclaimed' && $item->status !== 'matched') {
-                return response()->json(['message' => 'Item is not available to claim'], 422);
-            }
+		$contactName = $request->input('contactName');
+		$contactInfo = $request->input('contactInfo');
+		$matchedLostItemId = $request->input('matchedLostItemId');
+		$claimMessage = $request->input('message');
 
-            // First claim or same user reclaiming
-            $item->claimed_by = $user->id;
-            $item->claim_message = $request->input('message');
-            $item->claimed_at = now();
-            $item->status = 'matched';
-            $item->save();
+		$meta = [
+			'hasMultipleClaims' => false,
+		];
 
-            // Also create claim record for history
-            \App\Models\ClaimedItem::create([
-                'found_item_id' => $item->id,
-                'claimant_id' => $user->id,
-                'message' => $request->input('message'),
-                'status' => 'pending',
-            ]);
+		if ($item->status === FoundItemStatus::CLAIM_PENDING && (int) $item->claimed_by !== (int) $user->id) {
+			$claim = ClaimedItem::create([
+				'found_item_id' => $item->id,
+				'claimant_id' => $user->id,
+				'message' => $claimMessage,
+				'claimant_contact_name' => $contactName,
+				'claimant_contact_info' => $contactInfo,
+				'matched_lost_item_id' => $matchedLostItemId,
+				'status' => ClaimStatus::PENDING->value,
+			]);
 
-            // Notify all admins about the new claim
-            $admins = \App\Models\User::where('role', 'admin')->get();
-            $claimant = $user;
-            $claimMessagePreview = strlen($item->claim_message) > 100 
-                ? substr($item->claim_message, 0, 100) . '...' 
-                : $item->claim_message;
-            
-            $categoryName = $item->category ? $item->category->name : 'Unknown';
+			$this->dispatchClaimSubmittedEvent($claim, $item, $user);
 
-            foreach ($admins as $admin) {
-                \App\Jobs\SendNotificationJob::dispatch(
-                    $admin->id,
-                    '🆕 New Claim Submitted',
-                    "{$claimant->name} ({$claimant->email}) claimed item '{$item->title}'. Category: {$categoryName}. Location: {$item->location}. Message: {$claimMessagePreview}",
-                    'newClaim',
-                    $item->id
-                );
-            }
+			$meta['hasMultipleClaims'] = true;
+			$meta['message'] = 'Your claim has been submitted. This item already has other pending claims.';
+			$meta['claimId'] = $claim->id;
 
-            return response()->json([
-                'item' => $item,
-                'hasMultipleClaims' => false
-            ], 200);
+			// Notify claimant that their claim was submitted
+			SendNotificationJob::dispatch(
+				$user->id,
+				'Claim Submitted',
+				"Your claim for '{$item->title}' has been submitted. The admin will review it soon.",
+				'claimSubmitted',
+				$claim->id
+			);
+
+			$admins = \App\Models\User::where('role', 'admin')->get();
+			foreach ($admins as $admin) {
+				SendNotificationJob::dispatch(
+					$admin->id,
+					'⚠️ Multiple Claims for Item',
+					"Item '{$item->title}' has multiple pending claims. Please review.",
+					'multipleClaims',
+					$item->id
+				);
+			}
+
+			$item->refresh();
+			$this->loadItemRelations($item);
+
+			return $this->respondWithItemResource($item, 200, $meta);
+		}
+
+		$item->claimed_by = $user->id;
+		$item->claim_message = $claimMessage;
+		$item->claimant_contact_name = $contactName;
+		$item->claimant_contact_info = $contactInfo;
+		$item->markClaimPending(now());
+		$item->save();
+
+		$claimRecord = ClaimedItem::create([
+			'found_item_id' => $item->id,
+			'claimant_id' => $user->id,
+			'message' => $claimMessage,
+			'claimant_contact_name' => $contactName,
+			'claimant_contact_info' => $contactInfo,
+			'matched_lost_item_id' => $matchedLostItemId,
+			'status' => ClaimStatus::PENDING->value,
+		]);
+
+		$this->dispatchClaimSubmittedEvent($claimRecord, $item, $user);
+
+		$meta['claimId'] = $claimRecord->id;
+		$meta['message'] = 'Claim submitted. Admin will review shortly.';
+
+		// Notify claimant that their claim was submitted
+		SendNotificationJob::dispatch(
+			$user->id,
+			'Claim Submitted',
+			"Your claim for '{$item->title}' has been submitted. The admin will review it soon.",
+			'claimSubmitted',
+			$claimRecord->id
+		);
+
+		$admins = \App\Models\User::where('role', 'admin')->get();
+		$claimMessagePreview = strlen($item->claim_message) > 100
+			? substr($item->claim_message, 0, 100) . '...'
+			: $item->claim_message;
+
+		$categoryName = $item->category ? $item->category->name : 'Unknown';
+
+		foreach ($admins as $admin) {
+			SendNotificationJob::dispatch(
+				$admin->id,
+				'🆕 New Claim Submitted',
+				"{$user->name} ({$user->email}) claimed item '{$item->title}'. Category: {$categoryName}. Location: {$item->location}. Message: {$claimMessagePreview}",
+				'newClaim',
+				$item->id
+			);
+		}
+
+		$item->refresh();
+		$this->loadItemRelations($item);
+
+		return $this->respondWithItemResource($item, 200, $meta);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to submit claim', 'message' => $e->getMessage()], 500);
         }
@@ -498,6 +671,7 @@ class ItemController extends Controller
                         $refType = 'lost';
                     }
                 }
+
             }
 
             if (!$reference || !$refType) {
@@ -642,13 +816,13 @@ class ItemController extends Controller
                 
                 $candidates = collect();
                 if ($refType === 'lost') {
-                    $candidates = FoundItem::where('status', 'unclaimed')
+                    $candidates = FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)
                         ->where('id', '!=', $ref->id)
                         ->latest('created_at')
                         ->limit(200)
                         ->get();
                 } else {
-                    $candidates = LostItem::where('status', 'open')
+                    $candidates = LostItem::where('status', LostItemStatus::LOST_REPORTED->value)
                         ->where('id', '!=', $ref->id)
                         ->latest('created_at')
                         ->limit(200)
@@ -678,4 +852,80 @@ class ItemController extends Controller
             return response()->json(['error' => 'Failed to batch match', 'message' => $e->getMessage()], 500);
         }
     }
+
+	private function respondWithItemResource($item, int $status = 200, array $meta = [])
+	{
+		try {
+			$resource = $this->resourceForModel($item);
+
+			if (!empty($meta)) {
+				$resource->additional(['meta' => $meta]);
+			}
+
+			$response = $resource->response()->setStatusCode($status);
+			
+			// Ensure JSON content type is set
+			$response->header('Content-Type', 'application/json');
+			
+			return $response;
+		} catch (\Exception $e) {
+			\Log::error('RESOURCE_RESPONSE_ERROR', [
+				'message' => $e->getMessage(),
+				'trace' => $e->getTraceAsString(),
+			]);
+			// Fallback to simple JSON response
+			return response()->json([
+				'id' => $item->id ?? null,
+				'title' => $item->title ?? null,
+				'error' => 'Failed to format resource response',
+				'message' => $e->getMessage()
+			], $status)->header('Content-Type', 'application/json');
+		}
+	}
+
+	private function resourceForModel($item)
+	{
+		if ($item instanceof FoundItem) {
+			return new FoundItemResource($item);
+		}
+
+		return new LostItemResource($item);
+	}
+
+	private function loadItemRelations($item): void
+	{
+		if ($item instanceof FoundItem) {
+			$item->loadMissing(['category', 'claims.claimant', 'transitionLogs.user']);
+		} else {
+			$item->loadMissing(['category', 'transitionLogs.user']);
+		}
+	}
+
+	private function dispatchClaimSubmittedEvent(\App\Models\ClaimedItem $claim, FoundItem $item, $claimant): void
+	{
+		$domainEvents = app(DomainEventService::class);
+
+		$domainEvents->dispatch(
+			'claim.submitted',
+			[
+				'claimId' => $claim->id,
+				'foundItem' => [
+					'id' => $item->id,
+					'status' => $item->status->value,
+					'title' => $item->title,
+				],
+				'claimant' => [
+					'id' => $claimant->id,
+					'name' => $claimant->name,
+				],
+				'message' => $claim->message,
+				'submittedAt' => $claim->created_at?->toIso8601String(),
+			],
+			[
+				'id' => $claimant->id,
+				'role' => 'student',
+			],
+			'campus-nav.api'
+		);
+	}
 }

@@ -2,10 +2,12 @@
 
 namespace App\Jobs;
 
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
+use App\Jobs\SendNotificationJob;
 use App\Models\FoundItem;
 use App\Models\ItemMatch;
 use App\Models\LostItem;
-use App\Jobs\SendNotificationJob;
 use App\Services\AIService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,7 +36,7 @@ class ComputeItemMatches implements ShouldQueue
         if ($this->referenceType === 'found') {
             $reference = FoundItem::query()->find($this->referenceId);
             if (!$reference) { return; }
-            $candidates = LostItem::where('status', 'open')
+            $candidates = LostItem::where('status', LostItemStatus::LOST_REPORTED->value)
                 ->latest('created_at')
                 ->limit($limit)
                 ->get();
@@ -76,7 +78,7 @@ class ComputeItemMatches implements ShouldQueue
         // referenceType === 'lost'
         $reference = LostItem::query()->find($this->referenceId);
         if (!$reference) { return; }
-        $candidates = FoundItem::where('status', 'unclaimed')
+        $candidates = FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)
             ->latest('created_at')
             ->limit($limit)
             ->get();

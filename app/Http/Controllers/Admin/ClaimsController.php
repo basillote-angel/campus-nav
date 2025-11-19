@@ -2,20 +2,43 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ClaimStatus;
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
 use App\Http\Controllers\Controller;
-use App\Models\FoundItem;
-use App\Models\ClaimedItem;
 use App\Jobs\SendNotificationJob;
+use App\Mail\ClaimApprovedMail;
+use App\Mail\ClaimApprovalCancelledMail;
+use App\Mail\ClaimRejectedMail;
+use App\Mail\CollectionReminderMail;
+use App\Models\ActivityLog;
+use App\Models\ClaimedItem;
+use App\Models\CollectionReminderLog;
+use App\Models\FoundItem;
+use App\Models\LostItem;
+use App\Helpers\PickupInstructionHelper;
+use App\Services\LostFound\FoundItemFlowService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Mail;
 
 class ClaimsController extends Controller
 {
+    public function __construct(
+        private FoundItemFlowService $flowService
+    ) {
+    }
+
     public function index(Request $request)
     {
         $tab = $request->query('tab', 'pending');
+        
+        // Ensure tab is valid (remove 'rejected' as it's no longer used)
+        if (!in_array($tab, ['pending', 'approved', 'collected'])) {
+            $tab = 'pending';
+        }
         
         // Advanced filtering
         $categoryId = $request->query('category');
@@ -24,15 +47,23 @@ class ClaimsController extends Controller
         $dateTo = $request->query('date_to');
         $search = $request->query('search');
 
-        $pendingQuery = FoundItem::with(['claimedBy', 'category'])
-            ->where('status', 'matched');
+        $pendingQuery = FoundItem::with([
+                'claimedBy',
+                'category',
+                'matches',
+                'pendingClaims.claimant',
+                'pendingClaims.matchedLostItem',
+                'pendingClaims.approvedBy',
+                'pendingClaims.rejectedBy',
+            ])
+            ->where('status', FoundItemStatus::CLAIM_PENDING->value);
         
-        $approvedQuery = FoundItem::with(['claimedBy', 'category', 'collectedBy'])
-            ->where('status', 'returned');
+        $approvedQuery = FoundItem::with(['claimedBy', 'category', 'collectedBy', 'claims.claimant'])
+            ->where('status', FoundItemStatus::CLAIM_APPROVED->value);
         
-        $rejectedQuery = FoundItem::with(['claimedBy', 'category'])
-            ->where('status', 'unclaimed')
-            ->whereNotNull('rejected_at');
+        $collectedQuery = FoundItem::with(['claimedBy', 'category', 'collectedBy'])
+            ->where('status', FoundItemStatus::COLLECTED->value)
+            ->whereNotNull('collected_at');
 
         // Apply search filter
         if ($search) {
@@ -62,66 +93,79 @@ class ClaimsController extends Controller
                       $subQ->where('name', 'like', $searchTerm);
                   });
             });
-            $rejectedQuery->where(function($q) use ($searchTerm) {
-                $q->where('title', 'like', $searchTerm)
-                  ->orWhere('description', 'like', $searchTerm)
-                  ->orWhere('location', 'like', $searchTerm)
-                  ->orWhere('rejection_reason', 'like', $searchTerm)
-                  ->orWhereHas('claimedBy', function($subQ) use ($searchTerm) {
-                      $subQ->where('name', 'like', $searchTerm)
-                           ->orWhere('email', 'like', $searchTerm);
-                  })
-                  ->orWhereHas('category', function($subQ) use ($searchTerm) {
-                      $subQ->where('name', 'like', $searchTerm);
-                  });
-            });
         }
 
         // Apply filters
         if ($categoryId) {
             $pendingQuery->where('category_id', $categoryId);
             $approvedQuery->where('category_id', $categoryId);
-            $rejectedQuery->where('category_id', $categoryId);
         }
 
         if ($claimantId) {
             $pendingQuery->where('claimed_by', $claimantId);
             $approvedQuery->where('claimed_by', $claimantId);
-            $rejectedQuery->where('claimed_by', $claimantId);
         }
 
         if ($dateFrom) {
             $pendingQuery->whereDate('claimed_at', '>=', $dateFrom);
             $approvedQuery->whereDate('approved_at', '>=', $dateFrom);
-            $rejectedQuery->whereDate('rejected_at', '>=', $dateFrom);
         }
 
         if ($dateTo) {
             $pendingQuery->whereDate('claimed_at', '<=', $dateTo);
             $approvedQuery->whereDate('approved_at', '<=', $dateTo);
-            $rejectedQuery->whereDate('rejected_at', '<=', $dateTo);
         }
 
         $pending = $pendingQuery->latest('claimed_at')->get();
         $approved = $approvedQuery->latest('approved_at')->get();
-        $rejected = $rejectedQuery->latest('rejected_at')->get();
+        $collected = $collectedQuery->latest('collected_at')->get();
 
-        // Get all claims for items with multiple claims
+        // Group pending claims by found item for quick lookup in the view
+        $pendingClaimsByItem = [];
         $itemsWithMultipleClaims = [];
-        foreach ($pending as $item) {
-            $allClaims = ClaimedItem::with('claimant')
-                ->where('found_item_id', $item->id)
-                ->where('status', 'pending')
+
+        foreach ($pending as $pendingItem) {
+            $claims = ClaimedItem::with(['claimant', 'matchedLostItem', 'approvedBy', 'rejectedBy'])
+                ->where('found_item_id', $pendingItem->id)
+                ->where('status', ClaimStatus::PENDING->value)
+                ->orderBy('created_at')
                 ->get();
-            if ($allClaims->count() > 1) {
-                $itemsWithMultipleClaims[$item->id] = $allClaims;
+
+            if ($claims->isNotEmpty()) {
+                $pendingClaimsByItem[$pendingItem->id] = $claims->map(function (ClaimedItem $pendingClaim) use ($pendingItem) {
+                    $similarity = null;
+                    if ($pendingClaim->matched_lost_item_id && $pendingItem->relationLoaded('matches')) {
+                        $matchRecord = $pendingItem->matches->firstWhere('lost_id', $pendingClaim->matched_lost_item_id);
+                        if ($matchRecord) {
+                            $similarity = round(($matchRecord->similarity_score ?? 0) * 100, 1);
+                        }
+                    }
+
+                    return [
+                        'id' => $pendingClaim->id,
+                        'claimantName' => optional($pendingClaim->claimant)->name ?? 'Unknown',
+                        'claimantEmail' => optional($pendingClaim->claimant)->email,
+                        'message' => $pendingClaim->message,
+                        'contactName' => $pendingClaim->claimant_contact_name,
+                        'contactInfo' => $pendingClaim->claimant_contact_info,
+                        'status' => $pendingClaim->status,
+                        'createdAt' => optional($pendingClaim->created_at)->toDateTimeString(),
+                        'similarity' => $similarity,
+                        'reviewNotes' => $pendingClaim->review_notes,
+                        'updateNotesUrl' => route('admin.claims.updateNotes', $pendingClaim->id),
+                    ];
+                });
+            }
+
+            if ($claims->count() > 1) {
+                $itemsWithMultipleClaims[$pendingItem->id] = $claims;
             }
         }
 
         // Collection statistics (deadline info is informational only)
         $collectionStats = [
-            'pending_collection' => $approved->where('collected_at', null)->count(),
-            'collected' => $approved->where('collected_at', '!=', null)->count(),
+            'pending_collection' => $approved->count(),
+            'collected' => $collected->count(),
             'deadline_passed' => $approved->filter(fn($item) => $item->isCollectionDeadlinePassed())->count(),
         ];
 
@@ -138,7 +182,7 @@ class ClaimsController extends Controller
             'tab', 
             'pending', 
             'approved', 
-            'rejected', 
+            'collected', 
             'collectionStats',
             'categories',
             'claimants',
@@ -146,69 +190,198 @@ class ClaimsController extends Controller
             'claimantId',
             'dateFrom',
             'dateTo',
-            'itemsWithMultipleClaims'
+            'itemsWithMultipleClaims',
+            'pendingClaimsByItem'
         ));
     }
 
     public function approve(Request $request, $id)
     {
-        try {
-            $item = FoundItem::with('claimedBy')->findOrFail($id);
-            if ($item->status !== 'matched') {
-                return back()->with('error', 'No pending claim to approve.');
-            }
+		$claimId = $request->input('claim_id');
+		$losingClaims = collect();
+		$winningClaim = null;
+		$collectionDeadline = null;
+		$matchedLostItem = null;
+		$itemTitle = null;
+		$item = null;
 
-            // Calculate collection deadline (optional, informational only - not enforced)
-            $deadlineDays = (int) config('services.admin_office.collection_deadline_days', 7);
-            $collectionDeadline = Carbon::now()->addDays($deadlineDays);
+		try {
+			$deadlineDays = (int) config('services.admin_office.collection_deadline_days', 7);
+			$collectionDeadline = Carbon::now()->addDays(max($deadlineDays, 1));
 
-            // Update item status and set collection deadline (optional for reference only)
-            $item->approved_by = Auth::id();
-            $item->approved_at = now();
-            // Set deadline as informational only - not strictly enforced
-            $item->collection_deadline = $collectionDeadline;
-            $item->status = 'returned';
-            $item->save();
+			$result = $this->flowService->approveClaim(
+				$id,
+				$claimId,
+				(int) Auth::id(),
+				$collectionDeadline
+			);
 
-            // Get collection details from config
+			$item = $result['item'];
+			$winningClaim = $result['winningClaim'];
+			$losingClaims = $result['losingClaims'];
+			$matchedLostItem = $result['matchedLostItem'];
+			$itemTitle = $item->title;
+
+			$winningClaim?->loadMissing('claimant');
+
+			foreach ($losingClaims as $losingClaimModel) {
+				$losingClaimModel->loadMissing('claimant');
+			}
+
+			// Prepare notifications after successful transaction
             $officeLocation = config('services.admin_office.location', 'Admin Office');
             $officeHours = config('services.admin_office.office_hours', 'Monday-Friday, 8:00 AM - 5:00 PM');
             $contactEmail = config('services.admin_office.contact_email', 'admin@school.edu');
             $contactPhone = config('services.admin_office.contact_phone', '(555) 123-4567');
 
-            // Notify claimant with collection details
-            if ($item->claimedBy) {
-                // Create comprehensive notification message with collection details
-                $deadlineText = $collectionDeadline->format('F d, Y');
-                $notificationBody = "Your claim for '{$item->title}' was approved! ✅\n\n";
-                $notificationBody .= "🏢 IMPORTANT: Physical collection required at admin office.\n\n";
-                $notificationBody .= "📍 Location: {$officeLocation}\n";
-                $notificationBody .= "⏰ Hours: {$officeHours}\n";
-                $notificationBody .= "💡 Suggested Collection: {$deadlineText}\n";
-                $notificationBody .= "🆔 Required: Bring valid ID (Student ID or Government ID)\n\n";
-                $notificationBody .= "📞 Questions? {$contactEmail} or {$contactPhone}";
+			if ($winningClaim && $winningClaim->claimant_id) {
+				// Generate formal pickup instructions using PickupInstructionHelper
+				$pickupData = [
+					'item_title' => $itemTitle,
+					'collection_location' => $item->collection_location ?? $officeLocation,
+					'collection_deadline' => $collectionDeadline,
+					'collection_instructions' => $item->collection_instructions ?? null,
+					'office_hours' => $officeHours,
+					'contact_info' => "Email: {$contactEmail} | Phone: {$contactPhone}",
+					'claimant_name' => $winningClaim->claimant?->name ?? null,
+				];
+
+				$notificationBody = PickupInstructionHelper::generateFormalMessage($pickupData);
+				$deadlineText = $collectionDeadline ? $collectionDeadline->format('F d, Y') : Carbon::now()->addDays(7)->format('F d, Y');
                 
-                // Send notification via SendNotificationJob (creates AppNotification record + FCM push)
+				$eventContext = [
+					'type' => 'claim.approved',
+					'payload' => [
+						'claimId' => $winningClaim->id,
+						'foundItem' => [
+							'id' => $item->id,
+							'status' => $item->status->value,
+							'title' => $itemTitle,
+							'collectionDeadline' => $collectionDeadline?->toIso8601String(),
+						],
+						'claimant' => [
+							'id' => $winningClaim->claimant_id,
+							'name' => $winningClaim->claimant?->name,
+							'contactInfo' => $winningClaim->claimant_contact_info,
+						],
+						'approvedBy' => [
+							'id' => Auth::id(),
+							'name' => Auth::user()?->name,
+						],
+					],
+					'actor' => [
+						'id' => Auth::id(),
+						'role' => 'admin',
+					],
+					'source' => 'campus-nav.admin',
+				];
+
                 SendNotificationJob::dispatch(
-                    $item->claimedBy->id,
+					$winningClaim->claimant_id,
                     'Claim Approved! ✅',
                     $notificationBody,
                     'claimApproved',
-                    $item->id
-                );
+					$id,
+					null,
+					$eventContext
+				);
 
-                // Auto-close related LostItem if exists
-                $relatedLostItem = \App\Models\LostItem::where('user_id', $item->claimedBy->id)
-                    ->where('status', 'open')
-                    ->where('title', 'like', '%' . $item->title . '%')
-                    ->first();
-                
-                if ($relatedLostItem) {
-                    $relatedLostItem->status = 'closed';
-                    $relatedLostItem->save();
-                }
-            }
-        } catch (\Exception $e) {
+				if ($winningClaim->claimant && $winningClaim->claimant->email) {
+					try {
+						Mail::to($winningClaim->claimant->email)
+							->queue(new ClaimApprovedMail([
+								'recipientName' => $winningClaim->claimant->name ?? 'NavistFind User',
+								'itemTitle' => $itemTitle,
+								'collectionDeadlineText' => $deadlineText,
+								'officeLocation' => $officeLocation,
+								'officeHours' => $officeHours,
+								'contactEmail' => $contactEmail,
+								'contactPhone' => $contactPhone,
+							]));
+					} catch (\Exception $e) {
+						Log::warning('Failed to send claim approved email', [
+							'email' => $winningClaim->claimant->email,
+							'error' => $e->getMessage(),
+						]);
+						// Don't fail the approval if email fails
+					}
+				}
+			}
+
+			foreach ($losingClaims as $losingClaim) {
+				if (!$losingClaim->claimant_id) {
+					continue;
+				}
+
+				$notificationBody = "Another claimant was approved for '{$itemTitle}', so your claim was closed.\n\n";
+				$notificationBody .= "Here are tips if you submit again:\n";
+				$notificationBody .= "• Include brand, model, or unique identifiers\n";
+				$notificationBody .= "• Mention where and when it was lost\n";
+				$notificationBody .= "• Attach proof of ownership if possible\n\n";
+				$notificationBody .= "Need help? {$contactEmail} / {$contactPhone}.";
+
+				$loserEventContext = [
+					'type' => 'claim.rejected',
+					'payload' => [
+						'claimId' => $losingClaim->id,
+						'foundItem' => [
+							'id' => $item->id,
+							'status' => $item->status->value,
+						],
+						'claimant' => [
+							'id' => $losingClaim->claimant_id,
+							'name' => $losingClaim->claimant?->name,
+						],
+						'reason' => 'Another claimant provided stronger proof of ownership.',
+						'rejectedBy' => [
+							'id' => Auth::id(),
+							'name' => Auth::user()?->name,
+						],
+					],
+					'actor' => [
+						'id' => Auth::id(),
+						'role' => 'admin',
+					],
+					'source' => 'campus-nav.admin',
+				];
+
+				SendNotificationJob::dispatch(
+					$losingClaim->claimant_id,
+					'Claim Closed',
+					$notificationBody,
+					'claimRejected',
+					$id,
+					null,
+					$loserEventContext
+				);
+
+			if ($losingClaim->claimant && $losingClaim->claimant->email) {
+				try {
+					Mail::to($losingClaim->claimant->email)
+						->queue(new ClaimRejectedMail([
+							'recipientName' => $losingClaim->claimant->name ?? 'NavistFind User',
+							'itemTitle' => $itemTitle,
+							'rejectionReason' => 'Another claimant provided stronger proof of ownership.',
+							'contactEmail' => $contactEmail,
+							'contactPhone' => $contactPhone,
+						]));
+				} catch (\Exception $e) {
+					Log::warning('Failed to send claim rejected email', [
+						'email' => $losingClaim->claimant->email,
+						'error' => $e->getMessage(),
+					]);
+					// Don't fail the approval if email fails
+				}
+			}
+
+				ActivityLog::create([
+					'user_id' => Auth::id(),
+					'action' => 'claim_outcome_notification',
+					'details' => "Notified {$losingClaim->claimant?->name} about losing claim for '{$itemTitle}'.",
+					'created_at' => now(),
+				]);
+			}
+		} catch (\Throwable $e) {
             Log::error('Error approving claim: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'item_id' => $id ?? null,
@@ -222,55 +395,101 @@ class ClaimsController extends Controller
         }
 
         if ($request->expectsJson() || $request->isJson()) {
-            return response()->json(['success' => true, 'message' => 'Claim approved. User notified with collection instructions.']);
+			return response()->json(['success' => true, 'message' => 'Claim approved. Claimants were notified with next steps.']);
         }
         
-        return back()->with('success', 'Claim approved. User notified with collection instructions.');
+		return back()->with('success', 'Claim approved. Claimants were notified with next steps.');
     }
 
-    public function reject(Request $request, $id)
-    {
-        try {
-            $request->validate(['reason' => 'required|string|max:1000']);
+	public function reject(Request $request, $id)
+	{
+		$request->validate(['reason' => 'nullable|string|max:1000']);
 
-            $item = FoundItem::with('claimedBy')->findOrFail($id);
-            if ($item->status !== 'matched') {
-                if ($request->expectsJson() || $request->isJson()) {
-                    return response()->json(['success' => false, 'message' => 'No pending claim to reject.'], 400);
-                }
-                return back()->with('error', 'No pending claim to reject.');
-            }
-            
-            // Save claimant ID before clearing it
-            $claimantId = $item->claimed_by;
-            $itemTitle = $item->title;
-            
-            $reason = $request->input('reason');
-            $item->rejected_by = Auth::id();
-            $item->rejected_at = now();
-            $item->rejection_reason = $reason;
-            $item->status = 'unclaimed';
-            $item->claimed_by = null;
-            $item->claim_message = null;
-            $item->claimed_at = null;
-            $item->save();
+		$reason = $request->input('reason', '');
+		$claimId = $request->input('claim_id');
+		$rejectedClaim = null;
+		$itemTitle = null;
+		$shouldClearPrimary = false;
+		$contactEmail = config('services.admin_office.contact_email', 'admin@school.edu');
+		$contactPhone = config('services.admin_office.contact_phone', '(555) 123-4567');
 
-            // Notify claimant if available (use saved claimant ID)
-            if ($claimantId) {
+		try {
+			$result = $this->flowService->rejectClaim(
+				$id,
+				(int) Auth::id(),
+				$claimId ? (int) $claimId : null,
+				$reason
+			);
+
+			$item = $result['item'];
+			$rejectedClaim = $result['rejectedClaim'];
+			$shouldClearPrimary = $result['clearedPrimary'];
+			$itemTitle = $item->title;
+
+			$rejectedClaim?->loadMissing('claimant');
+
+			if ($rejectedClaim && $rejectedClaim->claimant_id) {
                 $notificationBody = "Your claim for '{$itemTitle}' was rejected.\n\n";
-                $notificationBody .= "Reason: {$reason}\n\n";
-                $notificationBody .= "You can submit a new claim with more details or contact the admin office for clarification.";
+                if (!empty($reason)) {
+                    $notificationBody .= "Reason: {$reason}\n\n";
+                }
+				$notificationBody .= "You can submit a new claim with more specific details or contact the admin office for clarification.";
                 
-                // Send notification via SendNotificationJob (creates AppNotification record + FCM push)
+				$rejectionEventContext = [
+					'type' => 'claim.rejected',
+					'payload' => [
+						'claimId' => $rejectedClaim->id,
+						'foundItem' => [
+							'id' => $item->id,
+							'status' => $item->status->value,
+						],
+						'claimant' => [
+							'id' => $rejectedClaim->claimant_id,
+							'name' => $rejectedClaim->claimant?->name,
+						],
+						'reason' => $reason,
+						'rejectedBy' => [
+							'id' => Auth::id(),
+							'name' => Auth::user()?->name,
+						],
+					],
+					'actor' => [
+						'id' => Auth::id(),
+						'role' => 'admin',
+					],
+					'source' => 'campus-nav.admin',
+				];
+
                 SendNotificationJob::dispatch(
-                    $claimantId,
+					$rejectedClaim->claimant_id,
                     'Claim Rejected',
                     $notificationBody,
                     'claimRejected',
-                    $item->id
-                );
-            }
-        } catch (\Exception $e) {
+					$id,
+					null,
+					$rejectionEventContext
+				);
+
+			if ($rejectedClaim->claimant && $rejectedClaim->claimant->email) {
+				try {
+					Mail::to($rejectedClaim->claimant->email)
+						->queue(new ClaimRejectedMail([
+							'recipientName' => $rejectedClaim->claimant->name ?? 'NavistFind User',
+							'itemTitle' => $itemTitle,
+							'rejectionReason' => !empty($reason) ? $reason : 'Unable to verify ownership.',
+							'contactEmail' => $contactEmail,
+							'contactPhone' => $contactPhone,
+						]));
+				} catch (\Exception $e) {
+					Log::warning('Failed to send claim rejected email', [
+						'email' => $rejectedClaim->claimant->email,
+						'error' => $e->getMessage(),
+					]);
+					// Don't fail the rejection if email fails
+				}
+			}
+			}
+		} catch (\Throwable $e) {
             Log::error('Error rejecting claim: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'item_id' => $id ?? null,
@@ -283,11 +502,281 @@ class ClaimsController extends Controller
             return back()->with('error', 'Error rejecting claim: ' . $e->getMessage());
         }
 
+		$message = $shouldClearPrimary
+			? 'Claim rejected and item re-opened for other claimants.'
+			: 'Claim rejected.';
+
         if ($request->expectsJson() || $request->isJson()) {
-            return response()->json(['success' => true, 'message' => 'Claim rejected.']);
-        }
-        
-        return back()->with('success', 'Claim rejected.');
+			return response()->json(['success' => true, 'message' => $message]);
+		}
+
+		return back()->with('success', $message);
+	}
+
+    /**
+	 * Store or update admin review notes for a claim entry.
+	 */
+	public function updateReviewNotes(Request $request, $claimId)
+	{
+		$request->validate([
+			'review_notes' => 'nullable|string|max:2000',
+		]);
+
+		$claim = ClaimedItem::with('foundItem')->findOrFail($claimId);
+		$item = $claim->foundItem;
+
+		if (!$item || !in_array($item->status, [FoundItemStatus::CLAIM_PENDING, FoundItemStatus::COLLECTED], true)) {
+			return response()->json([
+				'success' => false,
+				'message' => 'Claim is not in a modifiable state.',
+			], 422);
+		}
+
+		$claim->review_notes = $request->input('review_notes');
+		$claim->save();
+
+		return response()->json([
+			'success' => true,
+			'review_notes' => $claim->review_notes,
+		]);
+	}
+
+	public function cancelApproval(Request $request, $id)
+	{
+		$cancelledClaimant = null;
+		$itemTitle = null;
+
+		try {
+			$result = $this->flowService->cancelApproval(
+				$id,
+				(int) Auth::id()
+			);
+
+			$item = $result['item'];
+			$approvedClaim = $result['approvedClaim'];
+			$cancelledClaimant = $result['cancelledClaimant'];
+			$itemTitle = $item->title;
+			$claimantId = $cancelledClaimant?->id;
+
+			if ($claimantId) {
+				$relatedLostItem = LostItem::where('user_id', $claimantId)
+					->whereIn('status', [LostItemStatus::RESOLVED->value])
+					->where('title', 'like', '%' . $item->title . '%')
+					->latest('created_at')
+					->first();
+
+				if ($relatedLostItem) {
+					$relatedLostItem->status = LostItemStatus::LOST_REPORTED->value;
+					$relatedLostItem->save();
+				}
+			}
+
+			CollectionReminderLog::query()
+				->where('found_item_id', $item->id)
+				->whereIn('status', ['pending'])
+				->update(['status' => 'expired']);
+
+			if ($claimantId) {
+				$notificationBody = "The approval for '{$itemTitle}' was cancelled by the admin.\n\n";
+				$notificationBody .= "The item is now open again for other claimants.\n";
+				$notificationBody .= "If this was a mistake, please submit a new claim with additional proof of ownership.";
+
+				$cancelEventContext = [
+					'type' => 'claim.rejected',
+					'payload' => [
+						'claimId' => $approvedClaim?->id,
+						'foundItem' => [
+							'id' => $item->id,
+							'status' => $item->status->value,
+						],
+						'claimant' => [
+							'id' => $claimantId,
+							'name' => $cancelledClaimant?->name,
+						],
+						'reason' => 'Approval cancelled by admin.',
+						'rejectedBy' => [
+							'id' => Auth::id(),
+							'name' => Auth::user()?->name,
+						],
+					],
+					'actor' => [
+						'id' => Auth::id(),
+						'role' => 'admin',
+					],
+					'source' => 'campus-nav.admin',
+				];
+
+				SendNotificationJob::dispatch(
+					$claimantId,
+					'Claim Approval Cancelled',
+					$notificationBody,
+					'claimCancelled',
+					$item->id,
+					null,
+					$cancelEventContext
+				);
+			}
+
+			ActivityLog::create([
+				'user_id' => Auth::id(),
+				'action' => 'claim_cancelled',
+				'details' => "Cancelled approval for '{$itemTitle}'.",
+				'ip_address' => $request->ip(),
+				'created_at' => now(),
+			]);
+		} catch (\Throwable $e) {
+			Log::error('Error cancelling claim approval: ' . $e->getMessage(), [
+				'trace' => $e->getTraceAsString(),
+				'item_id' => $id ?? null,
+			]);
+
+			if ($request->expectsJson() || $request->isJson()) {
+				return response()->json([
+					'success' => false,
+					'message' => 'Error cancelling approval: ' . $e->getMessage(),
+				], 500);
+			}
+
+			return back()->with('error', 'Error cancelling approval: ' . $e->getMessage());
+		}
+
+		if ($request->expectsJson() || $request->isJson()) {
+			return response()->json([
+				'success' => true,
+				'message' => 'Approval cancelled. Item reopened for recommendations.',
+			]);
+		}
+
+		$contactEmail = config('services.admin_office.contact_email', 'admin@school.edu');
+		$contactPhone = config('services.admin_office.contact_phone', '(555) 123-4567');
+
+		if ($cancelledClaimant && $cancelledClaimant->email) {
+			try {
+				Mail::to($cancelledClaimant->email)
+					->queue(new ClaimApprovalCancelledMail([
+						'recipientName' => $cancelledClaimant->name ?? 'NavistFind User',
+						'itemTitle' => $itemTitle ?? 'your item',
+						'contactEmail' => $contactEmail,
+					'contactPhone' => $contactPhone,
+				]));
+			} catch (\Exception $e) {
+				Log::warning('Failed to send claim cancellation email', [
+					'email' => $cancelledClaimant->email,
+					'error' => $e->getMessage(),
+				]);
+				// Don't fail the cancellation if email fails
+			}
+		}
+
+		return back()->with('success', 'Approval cancelled. Item reopened for recommendations.');
+	}
+
+	/**
+	 * Manually send a collection reminder for a returned item.
+	 */
+	public function sendReminder(Request $request, $id)
+	{
+		try {
+			$item = FoundItem::with('claimedBy')->findOrFail($id);
+
+			if ($item->status !== FoundItemStatus::CLAIM_APPROVED || !$item->claimed_by) {
+				return back()->with('error', 'Reminders can only be sent for items awaiting collection.');
+			}
+
+			if (!$item->collection_deadline) {
+				return back()->with('error', 'This item does not have a collection deadline set.');
+			}
+
+			$now = now();
+
+			$officeLocation = config('services.admin_office.location', 'Admin Office');
+			$officeHours = config('services.admin_office.office_hours', 'Monday-Friday, 8:00 AM - 5:00 PM');
+			$contactEmail = config('services.admin_office.contact_email', 'admin@school.edu');
+			$contactPhone = config('services.admin_office.contact_phone', '(555) 123-4567');
+
+			$deadlineText = $item->collection_deadline->format('F d, Y g:i A');
+
+			$body = "Reminder for '{$item->title}': please collect your item before the deadline.\n\n";
+			$body .= "📍 Location: {$officeLocation}\n";
+			$body .= "⏰ Office Hours: {$officeHours}\n";
+			$body .= "📅 Deadline: {$deadlineText}\n";
+			$body .= "🆔 Bring a valid ID for verification.\n\n";
+			$body .= "📞 Questions? {$contactEmail} / {$contactPhone}";
+
+			$eventContext = [
+				'type' => 'found.collectionReminder',
+				'payload' => [
+					'foundItemId' => $item->id,
+					'status' => $item->status->value,
+					'claimantId' => $item->claimed_by,
+					'collectionDeadline' => $item->collection_deadline?->toIso8601String(),
+					'reminderStage' => 'manual',
+				],
+				'actor' => [
+					'id' => Auth::id(),
+					'role' => 'admin',
+				],
+				'source' => 'campus-nav.admin',
+			];
+
+			SendNotificationJob::dispatch(
+				$item->claimed_by,
+				'Collection Reminder',
+				$body,
+				'collectionReminder',
+				$item->id,
+				null,
+				$eventContext
+			);
+
+		if ($item->claimedBy && $item->claimedBy->email) {
+			try {
+				Mail::to($item->claimedBy->email)
+					->queue(new CollectionReminderMail([
+						'recipientName' => $item->claimedBy->name ?? 'NavistFind User',
+						'itemTitle' => $item->title,
+						'deadlineText' => $deadlineText,
+						'officeLocation' => $officeLocation,
+						'officeHours' => $officeHours,
+						'stageMessage' => 'Please collect your item before the deadline listed below.',
+						'contactEmail' => $contactEmail,
+						'contactPhone' => $contactPhone,
+					]));
+			} catch (\Exception $e) {
+				Log::warning('Failed to send collection reminder email', [
+					'email' => $item->claimedBy->email,
+					'error' => $e->getMessage(),
+				]);
+				// Don't fail the reminder if email fails
+			}
+		}
+
+		CollectionReminderLog::query()
+				->where('found_item_id', $item->id)
+				->where('status', 'pending')
+				->update(['status' => 'expired']);
+
+			CollectionReminderLog::create([
+				'found_item_id' => $item->id,
+				'claimant_id' => $item->claimed_by,
+				'stage' => 'manual',
+				'source' => 'manual',
+				'status' => 'pending',
+				'sent_at' => $now,
+			]);
+
+			$item->last_collection_reminder_at = $now;
+			$item->collection_reminder_stage = 'manual';
+			$item->save();
+		} catch (\Throwable $e) {
+			Log::error('Manual reminder failed: '.$e->getMessage(), [
+				'item_id' => $id ?? null,
+			]);
+
+			return back()->with('error', 'Unable to send reminder right now.');
+		}
+
+		return back()->with('success', 'Reminder queued for claimant.');
     }
 
     /**
@@ -295,19 +784,102 @@ class ClaimsController extends Controller
      */
     public function markCollected(Request $request, $id)
     {
-        $item = FoundItem::findOrFail($id);
-        
-        if ($item->status !== 'returned') {
-            return back()->with('error', 'Item is not in approved status.');
-        }
+		$request->validate([
+			'note' => 'nullable|string|max:1000',
+		]);
 
-        if ($item->collected_at) {
-            return back()->with('error', 'Item has already been collected.');
-        }
+		$note = trim((string) $request->input('note', ''));
 
-        $item->collected_at = now();
-        $item->collected_by = Auth::id();
-        $item->save();
+		try {
+			$item = $this->flowService->markCollected(
+				$id,
+				(int) Auth::id(),
+				$note !== '' ? $note : null,
+				now()
+			);
+		} catch (\RuntimeException $e) {
+			return back()->with('error', $e->getMessage());
+		} catch (\Throwable $e) {
+			Log::error('Error marking item collected: '.$e->getMessage(), [
+				'item_id' => $id ?? null,
+			]);
+
+			return back()->with('error', 'Unable to mark item collected right now.');
+		}
+
+		$collectedAt = $item->collected_at ?? now();
+
+		$latestReminder = CollectionReminderLog::query()
+			->where('found_item_id', $item->id)
+			->where('status', 'pending')
+			->orderByDesc('sent_at')
+			->first();
+
+		if ($latestReminder) {
+			$minutes = $latestReminder->sent_at
+				? $latestReminder->sent_at->diffInMinutes($collectedAt)
+				: null;
+
+			$latestReminder->update([
+				'status' => 'converted',
+				'converted_at' => $collectedAt,
+				'minutes_to_collection' => $minutes,
+			]);
+
+			CollectionReminderLog::query()
+				->where('found_item_id', $item->id)
+				->where('status', 'pending')
+				->where('id', '<>', $latestReminder->id)
+				->update(['status' => 'expired']);
+		}
+
+		// Notify claimant that the item was collected
+		if ($item->claimed_by) {
+			$claimantId = (int) $item->claimed_by;
+			$title = 'Item Collected';
+			$body = "Your claim for '{$item->title}' has been marked as collected. "
+				. 'Thank you for using NavistFind.';
+
+			$eventContext = [
+				'type' => 'found.collected',
+				'payload' => [
+					'foundItemId' => $item->id,
+					'status' => $item->status->value,
+					'claimantId' => $claimantId,
+					'collectedAt' => $item->collected_at?->toIso8601String(),
+				],
+				'actor' => [
+					'id' => Auth::id(),
+					'role' => 'admin',
+				],
+				'source' => 'campus-nav.admin',
+			];
+
+			SendNotificationJob::dispatch(
+				$claimantId,
+				$title,
+				$body,
+				'collectionConfirmed',
+				$item->id,
+				null,
+				$eventContext
+			);
+		}
+
+		// Archival notice to admin/staff users
+		$adminIds = \App\Models\User::query()
+			->whereIn('role', ['admin', 'staff'])
+			->pluck('id');
+
+		foreach ($adminIds as $adminId) {
+			SendNotificationJob::dispatch(
+				(int) $adminId,
+				'Item Collected',
+				"Item '{$item->title}' was collected and marked as resolved.",
+				'collectionArchived',
+				$item->id
+			);
+		}
 
         return back()->with('success', 'Item marked as collected.');
     }

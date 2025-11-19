@@ -7,36 +7,44 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    public function up(): void
-    {
-        // Drop the unique index first
-        Schema::table('device_tokens', function (Blueprint $table) {
-            $table->dropUnique(['token']);
-        });
+	public function up(): void
+	{
+		if (Schema::getConnection()->getDriverName() === 'sqlite') {
+			return;
+		}
 
-        // Alter the column to support longer tokens (FCM tokens can be up to 2048 chars)
-        DB::statement('ALTER TABLE device_tokens MODIFY token VARCHAR(2048) NOT NULL');
+		// Drop the unique index first
+		Schema::table('device_tokens', function (Blueprint $table) {
+			$table->dropUnique(['token']);
+		});
 
-        // Recreate the unique index
-        Schema::table('device_tokens', function (Blueprint $table) {
-            $table->unique('token');
-        });
-    }
+		// Alter the column to support longer tokens (FCM tokens can be up to 2048 chars)
+		DB::statement('ALTER TABLE device_tokens MODIFY token VARCHAR(2048) NOT NULL');
 
-    public function down(): void
-    {
-        // Drop the unique index
-        Schema::table('device_tokens', function (Blueprint $table) {
-            $table->dropUnique(['token']);
-        });
+		// Recreate the unique index
+		Schema::table('device_tokens', function (Blueprint $table) {
+			$table->unique('token');
+		});
+	}
 
-        // Revert to original length
-        DB::statement('ALTER TABLE device_tokens MODIFY token VARCHAR(255) NOT NULL');
+	public function down(): void
+	{
+		if (Schema::getConnection()->getDriverName() === 'sqlite') {
+			return;
+		}
 
-        // Recreate the unique index
-        Schema::table('device_tokens', function (Blueprint $table) {
-            $table->unique('token');
-        });
-    }
+		// Drop the unique index
+		Schema::table('device_tokens', function (Blueprint $table) {
+			$table->dropUnique(['token']);
+		});
+
+		// Revert to original length
+		DB::statement('ALTER TABLE device_tokens MODIFY token VARCHAR(255) NOT NULL');
+
+		// Recreate the unique index
+		Schema::table('device_tokens', function (Blueprint $table) {
+			$table->unique('token');
+		});
+	}
 };
 

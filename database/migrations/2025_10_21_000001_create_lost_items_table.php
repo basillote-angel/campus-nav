@@ -27,7 +27,9 @@ return new class extends Migration
 			$table->index('date_lost');
 			$table->index('created_at');
 
-			$table->fullText(['title','description'], 'lost_items_title_description_fulltext');
+			if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+				$table->fullText(['title','description'], 'lost_items_title_description_fulltext');
+			}
 		});
 	}
 

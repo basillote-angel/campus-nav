@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LostItem;
-use App\Models\FoundItem;
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
+use App\Jobs\ComputeItemMatches;
 use App\Models\Category;
+use App\Models\FoundItem;
+use App\Models\LostItem;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use App\Jobs\ComputeItemMatches;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ItemController extends Controller
 {
@@ -38,13 +41,19 @@ class ItemController extends Controller
         if (!in_array($sortDirection, $allowedDirections)) {
             $sortDirection = 'desc';
         }
+
+        $lostStatusValues = LostItemStatus::values();
+        $foundStatusValues = FoundItemStatus::values();
         
         if ($type === 'lost') {
             $query = LostItem::query();
 
             if ($request->filled('status')) {
                 $statuses = is_array($request->status) ? $request->status : [$request->status];
-                $query->whereIn('status', $statuses);
+                $filteredStatuses = array_intersect($statuses, $lostStatusValues);
+                if (!empty($filteredStatuses)) {
+                    $query->whereIn('status', $filteredStatuses);
+                }
             }
             
             if ($request->filled('category')) {
@@ -121,7 +130,10 @@ class ItemController extends Controller
 
             if ($request->filled('status')) {
                 $statuses = is_array($request->status) ? $request->status : [$request->status];
-                $query->whereIn('status', $statuses);
+                $filteredStatuses = array_intersect($statuses, $foundStatusValues);
+                if (!empty($filteredStatuses)) {
+                    $query->whereIn('status', $filteredStatuses);
+                }
             }
             
             if ($request->filled('category')) {
@@ -275,8 +287,8 @@ class ItemController extends Controller
 
             if ($request->filled('status')) {
                 $statuses = is_array($request->status) ? $request->status : [$request->status];
-                $lostStatuses = array_intersect($statuses, ['open', 'matched', 'closed']);
-                $foundStatuses = array_intersect($statuses, ['unclaimed', 'matched', 'returned']);
+                $lostStatuses = array_intersect($statuses, $lostStatusValues);
+                $foundStatuses = array_intersect($statuses, $foundStatusValues);
                 
                 if (!empty($lostStatuses)) {
                     $lost->whereIn('lost_items.status', $lostStatuses);
@@ -412,18 +424,16 @@ class ItemController extends Controller
     {
         // Determine item type first to validate status correctly
         $originalType = $request->input('originalType', $request->type);
-        
-        // Validate status based on item type
-        $statusValidation = $originalType === 'lost' 
-            ? 'nullable|in:open,matched,closed'
-            : 'nullable|in:unclaimed,matched,returned';
+        $lostStatusValues = LostItemStatus::values();
+        $foundStatusValues = FoundItemStatus::values();
+        $statusSet = $originalType === 'lost' ? $lostStatusValues : $foundStatusValues;
 
         $request->validate([
             'title' => 'required|string',
             'category_id' => 'nullable|integer|exists:categories,id',
             'description' => 'required|string',
             'type' => 'required|in:lost,found',
-            'status' => $statusValidation,
+            'status' => ['nullable', Rule::in($statusSet)],
             'location' => 'nullable|string',
             'date' => 'nullable|date',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
@@ -516,6 +526,7 @@ class ItemController extends Controller
             'type' => 'required|in:lost,found',
             'description' => 'required|string',
             'location' => 'nullable|string',
+            'category_id' => 'nullable|integer|exists:categories,id',
         ]);
 
         $title = $request->input('title') ?? $request->input('name');
@@ -525,8 +536,12 @@ class ItemController extends Controller
         $categoryId = $request->input('category_id');
         if (!$categoryId && $request->filled('category')) {
             $catName = $request->input('category');
-            $cat = Category::where('name', $catName)->first();
+            $cat = Category::whereRaw('LOWER(name) = ?', [strtolower($catName)])->first();
             if ($cat) { $categoryId = $cat->id; }
+        }
+
+        if (!$categoryId) {
+            return response()->json(['success' => false, 'message' => 'Category is required.'], 422);
         }
 
         if (!$title) {
@@ -543,7 +558,7 @@ class ItemController extends Controller
                 'description' => $request->description,
                 'location' => $request->location,
                 'date_lost' => $date,
-                'status' => 'open',
+                'status' => LostItemStatus::LOST_REPORTED->value,
             ]);
         } else {
             $created = FoundItem::create([
@@ -553,7 +568,7 @@ class ItemController extends Controller
                 'description' => $request->description,
                 'location' => $request->location,
                 'date_found' => $date,
-                'status' => 'unclaimed',
+                'status' => FoundItemStatus::FOUND_UNCLAIMED->value,
             ]);
         }
 
@@ -579,6 +594,9 @@ class ItemController extends Controller
         $category = $request->query('category', '');
         $search = $request->query('search', '');
         $ids = $request->query('ids', ''); // For bulk export
+
+        $lostStatusValues = LostItemStatus::values();
+        $foundStatusValues = FoundItemStatus::values();
 
         // Handle bulk export (specific IDs)
         if ($ids) {
@@ -620,7 +638,9 @@ class ItemController extends Controller
         // Build query similar to index method
         else if ($type === 'lost') {
             $query = LostItem::query();
-            if ($status) $query->where('status', $status);
+            if ($status && in_array($status, $lostStatusValues, true)) {
+                $query->where('status', $status);
+            }
             if ($category) $query->where('category_id', $category);
             if ($search) {
                 $kw = '%' . $search . '%';
@@ -650,7 +670,9 @@ class ItemController extends Controller
             });
         } else if ($type === 'found') {
             $query = FoundItem::query();
-            if ($status) $query->where('status', $status);
+            if ($status && in_array($status, $foundStatusValues, true)) {
+                $query->where('status', $status);
+            }
             if ($category) $query->where('category_id', $category);
             if ($search) {
                 $kw = '%' . $search . '%';
@@ -684,10 +706,10 @@ class ItemController extends Controller
             $foundQuery = FoundItem::query();
             
             if ($status) {
-                if (in_array($status, ['open', 'matched', 'closed'])) {
+                if (in_array($status, $lostStatusValues, true)) {
                     $lostQuery->where('status', $status);
                 }
-                if (in_array($status, ['unclaimed', 'matched', 'returned'])) {
+                if (in_array($status, $foundStatusValues, true)) {
                     $foundQuery->where('status', $status);
                 }
             }
@@ -840,6 +862,8 @@ class ItemController extends Controller
         $action = $request->input('action');
         $value = $request->input('value');
         $updated = 0;
+        $lostStatusValues = LostItemStatus::values();
+        $foundStatusValues = FoundItemStatus::values();
 
         foreach ($items as $itemData) {
             $id = $itemData['id'];
@@ -849,7 +873,7 @@ class ItemController extends Controller
                 $model = LostItem::find($id);
                 if (!$model) continue;
                 
-                if ($action === 'status' && in_array($value, ['open', 'matched', 'closed'])) {
+                if ($action === 'status' && in_array($value, $lostStatusValues, true)) {
                     $model->status = $value;
                     $model->save();
                     $updated++;
@@ -862,7 +886,7 @@ class ItemController extends Controller
                 $model = FoundItem::find($id);
                 if (!$model) continue;
                 
-                if ($action === 'status' && in_array($value, ['unclaimed', 'matched', 'returned'])) {
+                if ($action === 'status' && in_array($value, $foundStatusValues, true)) {
                     $model->status = $value;
                     $model->save();
                     $updated++;

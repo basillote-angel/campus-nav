@@ -75,6 +75,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/admin/claims', [ClaimsController::class, 'index'])->name('admin.claims.index');
         Route::post('/admin/claims/{id}/approve', [ClaimsController::class, 'approve'])->name('admin.claims.approve');
         Route::post('/admin/claims/{id}/reject', [ClaimsController::class, 'reject'])->name('admin.claims.reject');
+        Route::post('/admin/claims/{claim}/review-notes', [ClaimsController::class, 'updateReviewNotes'])->name('admin.claims.updateNotes');
         Route::post('/admin/claims/{id}/mark-collected', [ClaimsController::class, 'markCollected'])->name('admin.claims.markCollected');
+        Route::post('/admin/claims/{id}/cancel', [ClaimsController::class, 'cancelApproval'])->name('admin.claims.cancel');
+        Route::post('/admin/claims/{id}/send-reminder', [ClaimsController::class, 'sendReminder'])->name('admin.claims.sendReminder');
     });
 });

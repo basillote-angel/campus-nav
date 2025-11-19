@@ -86,8 +86,13 @@
                                 value="{{ old('status', $item->status) }}"
                                 placeholder="Select Status"
                                 :options="$item->type === 'lost' 
-                                    ? ['open' => 'Open', 'matched' => 'Matched', 'closed' => 'Closed']
-                                    : ['unclaimed' => 'Unclaimed', 'matched' => 'Matched', 'returned' => 'Returned']"
+                                    ? ['LOST_REPORTED' => 'Lost Reported', 'RESOLVED' => 'Resolved']
+                                    : [
+                                        'FOUND_UNCLAIMED' => 'Found Unclaimed',
+                                        'CLAIM_PENDING' => 'Claim Pending',
+                                        'CLAIM_APPROVED' => 'Claim Approved',
+                                        'COLLECTED' => 'Collected',
+                                    ]"
                             />
                         </div>
                     </div>

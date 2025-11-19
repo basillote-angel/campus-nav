@@ -13,6 +13,161 @@
         body {
             font-family: 'Instrument Sans', sans-serif;
         }
+
+        /* Hero Section Animations */
+        .hero-badge {
+            animation: fadeInUp 0.6s ease-out;
+        }
+        .hero-title {
+            animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+        .hero-description {
+            animation: fadeInUp 0.6s ease-out 0.4s both;
+        }
+        .hero-cta {
+            animation: fadeInUp 0.6s ease-out 0.6s both;
+        }
+        .hero-info {
+            animation: fadeInUp 0.6s ease-out 0.8s both;
+        }
+        .hero-card {
+            animation: fadeInRight 0.8s ease-out 0.4s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Scroll-triggered animations */
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .fade-in-section.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Floating animation for admin card */
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .floating-card {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        /* Enhanced workflow card interactions */
+        .workflow-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .workflow-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        /* Stats section */
+        .stat-number {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Mobile menu improvements */
+        .mobile-menu {
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+
+        .mobile-menu-backdrop {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .mobile-menu-backdrop.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Button press animation */
+        .btn-press:active {
+            transform: scale(0.95);
+        }
+
+        /* Smooth icon animations */
+        .icon-hover {
+            transition: transform 0.2s ease;
+        }
+
+        .icon-hover:hover {
+            transform: scale(1.1);
+        }
+
+        /* Stats counter animation */
+        @keyframes countUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stat-item {
+            animation: countUp 0.6s ease-out both;
+        }
+
+        .stat-item:nth-child(1) { animation-delay: 0.1s; }
+        .stat-item:nth-child(2) { animation-delay: 0.2s; }
+        .stat-item:nth-child(3) { animation-delay: 0.3s; }
+        .stat-item:nth-child(4) { animation-delay: 0.4s; }
+
+        /* Skip to content link for accessibility */
+        .skip-to-content {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #123a7d;
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            z-index: 100;
+        }
+
+        .skip-to-content:focus {
+            top: 0;
+        }
     </style>
 </head>
 
@@ -23,6 +178,7 @@
 @endphp
 
 <body class="bg-[#f5f7fb] text-[#1c2a40] antialiased">
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
     <div class="min-h-screen flex flex-col">
         <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
             <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4">
@@ -60,50 +216,81 @@
                     </a>
                 </div>
 
-                <details class="relative w-max lg:hidden">
-                    <summary class="flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#123a7d] shadow-sm">
+                <button id="mobile-menu-toggle" class="lg:hidden flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#123a7d] shadow-sm transition-all hover:bg-[#f1f5ff]" aria-label="Toggle menu" aria-expanded="false">
                         Menu
                         <x-heroicon-o-bars-3 class="h-5 w-5" />
-                    </summary>
-                    <div class="absolute right-0 mt-3 w-48 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-600 shadow-xl">
-                        <a href="#about" class="block rounded-lg px-3 py-2 hover:bg-[#f1f5ff] hover:text-[#123a7d]">About</a>
-                        <a href="#workflow" class="mt-1 block rounded-lg px-3 py-2 hover:bg-[#f1f5ff] hover:text-[#123a7d]">Workflow</a>
-                        <a href="#support" class="mt-1 block rounded-lg px-3 py-2 hover:bg-[#f1f5ff] hover:text-[#123a7d]">Support</a>
-                        <hr class="my-3 border-slate-200">
-                        <a href="{{ $androidDownloadUrl }}" class="block rounded-lg px-3 py-2 text-[#123a7d] hover:bg-[#f1f5ff]">Download App</a>
-                        <a href="{{ route('login') }}" class="mt-1 block rounded-lg px-3 py-2 text-[#123a7d] hover:bg-[#f1f5ff]">Admin Login</a>
+                    </button>
+                    <div id="mobile-menu-backdrop" class="mobile-menu-backdrop fixed inset-0 bg-black/20 backdrop-blur-sm z-50 lg:hidden"></div>
+                    <div id="mobile-menu" class="mobile-menu fixed top-0 right-0 h-full w-64 bg-white shadow-2xl z-50 p-6 lg:hidden">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-[#123a7d]">Menu</h3>
+                            <button id="mobile-menu-close" class="p-2 rounded-full hover:bg-slate-100 transition-colors" aria-label="Close menu">
+                                <x-heroicon-o-x-mark class="h-6 w-6 text-slate-600" />
+                            </button>
+                        </div>
+                        <nav class="space-y-2">
+                            <a href="#about" class="mobile-menu-link block rounded-lg px-4 py-3 text-slate-600 hover:bg-[#f1f5ff] hover:text-[#123a7d] transition-colors">About</a>
+                            <a href="#workflow" class="mobile-menu-link block rounded-lg px-4 py-3 text-slate-600 hover:bg-[#f1f5ff] hover:text-[#123a7d] transition-colors">Workflow</a>
+                            <a href="#support" class="mobile-menu-link block rounded-lg px-4 py-3 text-slate-600 hover:bg-[#f1f5ff] hover:text-[#123a7d] transition-colors">Support</a>
+                            <hr class="my-4 border-slate-200">
+                            <a href="{{ $androidDownloadUrl }}" class="mobile-menu-link block rounded-lg px-4 py-3 text-[#123a7d] hover:bg-[#f1f5ff] transition-colors">Download App</a>
+                            <a href="{{ route('login') }}" class="mobile-menu-link block rounded-lg px-4 py-3 text-[#123a7d] hover:bg-[#f1f5ff] transition-colors">Admin Login</a>
+                        </nav>
                     </div>
-                </details>
             </div>
         </header>
 
-        <main class="flex-1">
+        <main class="flex-1" id="main-content">
+            <!-- Stats Section -->
+            <section class="bg-gradient-to-r from-[#123a7d] to-[#0f2f63] py-12">
+                <div class="mx-auto max-w-6xl px-6">
+                    <div class="grid grid-cols-2 gap-6 md:grid-cols-4">
+                        <div class="stat-item text-center">
+                            <div class="text-3xl font-bold text-white stat-number" data-target="500">0</div>
+                            <div class="mt-2 text-sm text-blue-100">Items Found</div>
+                        </div>
+                        <div class="stat-item text-center">
+                            <div class="text-3xl font-bold text-white stat-number" data-target="98">0</div>
+                            <div class="mt-2 text-sm text-blue-100">Success Rate %</div>
+                        </div>
+                        <div class="stat-item text-center">
+                            <div class="text-3xl font-bold text-white stat-number" data-target="1200">0</div>
+                            <div class="mt-2 text-sm text-blue-100">Students Served</div>
+                        </div>
+                        <div class="stat-item text-center">
+                            <div class="text-3xl font-bold text-white stat-number" data-target="24">0</div>
+                            <div class="mt-2 text-sm text-blue-100">Hour Response</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="bg-white">
                 <div class="mx-auto grid max-w-6xl gap-12 px-6 py-20 md:grid-cols-2 md:items-center md:py-24">
                     <div class="space-y-6">
-                        <span class="inline-flex w-max items-center gap-2 rounded-full bg-[#e4ecff] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-[#123a7d]">
-                            <x-heroicon-o-sparkles class="h-4 w-4" />
+                        <span class="hero-badge inline-flex w-max items-center gap-2 rounded-full bg-[#e4ecff] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-[#123a7d]">
+                            <x-heroicon-o-sparkles class="h-4 w-4 icon-hover" />
                             SMART LOST &amp; FOUND
                         </span>
                         <div class="space-y-4">
-                            <h1 class="text-4xl font-bold leading-tight text-[#123a7d] md:text-5xl">
+                            <h1 class="hero-title text-4xl font-bold leading-tight text-[#123a7d] md:text-5xl">
                                 Streamlined support for every campus lost &amp; found moment
-            </h1>
-                            <p class="text-base text-slate-600 md:text-lg">
+                            </h1>
+                            <p class="hero-description text-base text-slate-600 md:text-lg">
                                 NavistFind connects the student mobile app with the admin dashboard. Report, match, approve, and hand over items with clear status updates at each step.
-            </p>
-        </div>
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <a href="{{ $androidDownloadUrl }}" class="inline-flex items-center justify-center gap-3 rounded-full bg-[#123a7d] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blue-900/20 transition-transform hover:-translate-y-0.5 hover:bg-[#0f2f63]">
-                                <x-heroicon-o-device-phone-mobile class="h-5 w-5" />
+                            </p>
+                        </div>
+                        <div class="hero-cta flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <a href="{{ $androidDownloadUrl }}" class="btn-press inline-flex items-center justify-center gap-3 rounded-full bg-[#123a7d] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-blue-900/20 transition-all hover:-translate-y-0.5 hover:bg-[#0f2f63] hover:shadow-lg" aria-label="Download NavistFind mobile app">
+                                <x-heroicon-o-device-phone-mobile class="h-5 w-5 icon-hover" aria-hidden="true" />
                                 Download Mobile App
                             </a>
-                            <a href="{{ route('login') }}" class="inline-flex items-center justify-center gap-3 rounded-full border border-[#123a7d] px-6 py-3 text-sm font-semibold text-[#123a7d] hover:bg-[#123a7d]/5 transition-transform hover:-translate-y-0.5">
-                                <x-heroicon-o-arrow-right-circle class="h-5 w-5" />
+                            <a href="{{ route('login') }}" class="btn-press inline-flex items-center justify-center gap-3 rounded-full border border-[#123a7d] px-6 py-3 text-sm font-semibold text-[#123a7d] transition-all hover:-translate-y-0.5 hover:bg-[#123a7d]/5 hover:shadow-md" aria-label="Sign in to admin dashboard">
+                                <x-heroicon-o-arrow-right-circle class="h-5 w-5 icon-hover" aria-hidden="true" />
                                 Admin Sign In
                             </a>
                         </div>
-                        <div class="rounded-2xl border border-slate-200 bg-[#f7faff] px-5 py-3 text-xs text-slate-500 md:text-sm">
+                        <div class="hero-info rounded-2xl border border-slate-200 bg-[#f7faff] px-5 py-3 text-xs text-slate-500 md:text-sm">
                             <strong class="text-[#123a7d]">Students:</strong> Post lost items, review AI-powered matches, and manage claims through the NavistFind mobile app.
                         </div>
 </div>
@@ -111,7 +298,7 @@
                     <div class="relative">
                         <div class="absolute -top-8 -left-6 h-24 w-24 rounded-full bg-[#d8e6ff] blur-2xl"></div>
                         <div class="absolute -bottom-8 -right-8 h-28 w-28 rounded-full bg-[#ffe7cc] blur-2xl"></div>
-                        <div class="relative rounded-3xl border border-slate-200 bg-gradient-to-br from-[#fefefe] via-[#f6f9ff] to-[#f0f3ff] p-10 shadow-xl shadow-slate-200/70">
+                        <div class="hero-card floating-card relative rounded-3xl border border-slate-200 bg-gradient-to-br from-[#fefefe] via-[#f6f9ff] to-[#f0f3ff] p-10 shadow-xl shadow-slate-200/70">
                             <div class="space-y-12">
                                 <div>
                                     <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Admin Console Snapshot</p>
@@ -156,19 +343,19 @@
                 </div>
             </section>
 
-            <section id="about" class="bg-[#f5f7fb]">
+            <section id="about" class="fade-in-section bg-[#f5f7fb]">
                 <div class="mx-auto grid max-w-6xl gap-8 px-6 py-16 md:grid-cols-3">
-                    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
                         <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Students</p>
                         <h3 class="mt-3 text-lg font-semibold text-[#123a7d]">Lost item reporting</h3>
                         <p class="mt-3 text-sm text-slate-600">Create detailed lost posts in seconds, attach photos, and receive push notifications when matches appear.</p>
                     </div>
-                    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
                         <p class="text-xs uppercase tracking-[0.3em] text-slate-400">AI Service</p>
                         <h3 class="mt-3 text-lg font-semibold text-[#123a7d]">Smart recommendations</h3>
                         <p class="mt-3 text-sm text-slate-600">Similarity scoring surfaces relevant found items, notifies students, and alerts admins when multiple claims occur.</p>
                     </div>
-                    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
                         <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Admins</p>
                         <h3 class="mt-3 text-lg font-semibold text-[#123a7d]">Accountable decisions</h3>
                         <p class="mt-3 text-sm text-slate-600">Review claims, communicate decisions, set pickup deadlines, and archive completed cases.</p>
@@ -176,7 +363,7 @@
                 </div>
             </section>
 
-            <section id="workflow" class="bg-white">
+            <section id="workflow" class="fade-in-section bg-white">
                 <div class="mx-auto max-w-6xl px-6 py-18 md:py-20">
                     <div class="mb-10 text-center">
                         <span class="inline-flex items-center gap-2 rounded-full bg-[#e4ecff] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-[#123a7d]">
@@ -228,7 +415,7 @@
 
                     <div class="grid gap-6 md:grid-cols-5">
                         @foreach ($steps as $index => $step)
-                            <div class="relative flex h-full flex-col items-center rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-[#f8faff] to-white px-5 py-8 text-center shadow-sm transition-transform hover:-translate-y-1 hover:shadow-lg">
+                            <div class="workflow-card relative flex h-full flex-col items-center rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-[#f8faff] to-white px-5 py-8 text-center shadow-sm">
                                 <div class="flex h-12 w-12 items-center justify-center rounded-full bg-{{ $step['tone'] }}-100 text-{{ $step['tone'] }}-600 shadow-inner shadow-{{ $step['tone'] }}-200/60">
                                     @switch($step['icon'])
                                         @case('pencil')
@@ -266,7 +453,7 @@
             </section>
         </main>
                 
-        <footer id="support" class="border-t border-slate-200 bg-white">
+        <footer id="support" class="fade-in-section border-t border-slate-200 bg-white">
             <div class="mx-auto grid max-w-6xl gap-8 px-6 py-12 md:grid-cols-[1.2fr_1fr]">
                 <div class="space-y-4">
                     <p class="text-xs uppercase tracking-[0.35em] text-slate-400">NavistFind • Carmen National High School</p>
@@ -302,6 +489,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Navigation active link tracking
             const navLinks = document.querySelectorAll('.nav-link');
             const sections = [];
             navLinks.forEach(link => {
@@ -320,7 +508,7 @@
                         if (underline) {
                             underline.style.transform = 'scaleX(1)';
                         }
-            } else {
+                    } else {
                         link.classList.remove('text-[#123a7d]');
                         if (underline) {
                             underline.style.transform = 'scaleX(0)';
@@ -329,7 +517,7 @@
                 });
             };
 
-            const observer = new IntersectionObserver((entries) => {
+            const navObserver = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         activateLink(entry.target.id);
@@ -337,11 +525,111 @@
                 });
             }, { root: null, rootMargin: '-40% 0px -50% 0px', threshold: [0, 0.4] });
 
-            sections.forEach(({ section }) => observer.observe(section));
+            sections.forEach(({ section }) => navObserver.observe(section));
 
             if (sections.length) {
                 activateLink(sections[0].id);
             }
+
+            // Scroll-triggered animations
+            const fadeSections = document.querySelectorAll('.fade-in-section');
+            const fadeObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, { root: null, rootMargin: '-10% 0px -10% 0px', threshold: 0.1 });
+
+            fadeSections.forEach(section => fadeObserver.observe(section));
+
+            // Stats counter animation
+            const animateCounter = (element, target, duration = 2000) => {
+                let start = 0;
+                const increment = target / (duration / 16);
+                const timer = setInterval(() => {
+                    start += increment;
+                    if (start >= target) {
+                        element.textContent = target.toLocaleString();
+                        clearInterval(timer);
+                    } else {
+                        element.textContent = Math.floor(start).toLocaleString();
+                    }
+                }, 16);
+            };
+
+            const statNumbers = document.querySelectorAll('.stat-number');
+            const statsObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !entry.target.dataset.animated) {
+                        const target = parseInt(entry.target.dataset.target);
+                        animateCounter(entry.target, target);
+                        entry.target.dataset.animated = 'true';
+                    }
+                });
+            }, { root: null, rootMargin: '0px', threshold: 0.5 });
+
+            statNumbers.forEach(stat => statsObserver.observe(stat));
+
+            // Mobile menu functionality
+            const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileMenuBackdrop = document.getElementById('mobile-menu-backdrop');
+            const mobileMenuClose = document.getElementById('mobile-menu-close');
+            const mobileMenuLinks = document.querySelectorAll('.mobile-menu-link');
+
+            const openMobileMenu = () => {
+                mobileMenu.classList.add('open');
+                mobileMenuBackdrop.classList.add('active');
+                mobileMenuToggle.setAttribute('aria-expanded', 'true');
+                document.body.style.overflow = 'hidden';
+            };
+
+            const closeMobileMenu = () => {
+                mobileMenu.classList.remove('open');
+                mobileMenuBackdrop.classList.remove('active');
+                mobileMenuToggle.setAttribute('aria-expanded', 'false');
+                document.body.style.overflow = '';
+            };
+
+            if (mobileMenuToggle) {
+                mobileMenuToggle.addEventListener('click', openMobileMenu);
+            }
+
+            if (mobileMenuClose) {
+                mobileMenuClose.addEventListener('click', closeMobileMenu);
+            }
+
+            if (mobileMenuBackdrop) {
+                mobileMenuBackdrop.addEventListener('click', closeMobileMenu);
+            }
+
+            mobileMenuLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    closeMobileMenu();
+                });
+            });
+
+            // Smooth scroll for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    const href = this.getAttribute('href');
+                    if (href !== '#' && href !== '') {
+                        e.preventDefault();
+                        const target = document.querySelector(href);
+                        if (target) {
+                            const headerOffset = 80;
+                            const elementPosition = target.getBoundingClientRect().top;
+                            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+                            window.scrollTo({
+                                top: offsetPosition,
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                });
+            });
         });
     </script>
 </body>

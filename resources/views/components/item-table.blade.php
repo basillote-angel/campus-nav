@@ -125,17 +125,21 @@
                         <td class="px-4 py-3 whitespace-nowrap">
                             @php
                                 $status = data_get($item, 'status');
-                                $statusColors = [
-                                    'open' => 'bg-yellow-100 text-yellow-800',
-                                    'unclaimed' => 'bg-blue-100 text-blue-800',
-                                    'matched' => 'bg-purple-100 text-purple-800',
-                                    'returned' => 'bg-green-100 text-green-800',
-                                    'closed' => 'bg-gray-100 text-gray-800',
+                                $statusMeta = [
+                                    'LOST_REPORTED' => ['label' => 'Lost Reported', 'class' => 'bg-yellow-100 text-yellow-800'],
+                                    'RESOLVED' => ['label' => 'Resolved', 'class' => 'bg-gray-100 text-gray-800'],
+                                    'FOUND_UNCLAIMED' => ['label' => 'Found Unclaimed', 'class' => 'bg-blue-100 text-blue-800'],
+                                    'CLAIM_PENDING' => ['label' => 'Claim Pending', 'class' => 'bg-purple-100 text-purple-800'],
+                                    'CLAIM_APPROVED' => ['label' => 'Claim Approved', 'class' => 'bg-amber-100 text-amber-800'],
+                                    'COLLECTED' => ['label' => 'Collected', 'class' => 'bg-green-100 text-green-800'],
                                 ];
-                                $statusColor = $statusColors[$status] ?? 'bg-gray-100 text-gray-800';
+                                $meta = $statusMeta[$status] ?? [
+                                    'label' => \Illuminate\Support\Str::of((string) $status)->replace('_', ' ')->title(),
+                                    'class' => 'bg-gray-100 text-gray-800',
+                                ];
                             @endphp
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $statusColor }}">
-                                {{ ucfirst($status) }}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $meta['class'] }}">
+                                {{ $meta['label'] }}
                             </span>
                         </td>
 
@@ -361,6 +365,57 @@
     @endif
 </x-ui.card>
 
+{{-- Delete Confirmation Modal --}}
+<div 
+    id="deleteItemModal"
+    class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[10000]"
+    onclick="if(event.target === this) hideDeleteModal()"
+>
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="deleteItemModalContent">
+        {{-- Modal Header --}}
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-900">Confirm Deletion</h3>
+            <button 
+                type="button"
+                onclick="hideDeleteModal()"
+                class="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        {{-- Modal Body --}}
+        <div class="px-6 py-4">
+            <p class="text-gray-700 mb-4">Are you sure you want to delete this item? This action cannot be undone.</p>
+            <form method="POST" id="deleteItemForm">
+                @csrf
+                @method('DELETE')
+                <input type="hidden" name="type" id="delete-item-type">
+            </form>
+        </div>
+        
+        {{-- Modal Footer --}}
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <button 
+                type="button"
+                onclick="hideDeleteModal()"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500/50 focus:ring-offset-2 transition-colors"
+            >
+                Cancel
+            </button>
+            <button 
+                type="submit" 
+                form="deleteItemForm"
+                class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-2 transition-colors"
+            >
+                Confirm Delete
+            </button>
+        </div>
+    </div>
+</div>
+
 {{-- Bulk Actions Floating Toolbar --}}
 <div id="bulk-actions-toolbar" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50 transform translate-y-full transition-transform duration-300">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -375,41 +430,6 @@
                 </button>
             </div>
             <div class="flex items-center gap-3">
-                <div class="relative" id="bulk-status-container">
-                    <button 
-                        onclick="toggleBulkStatusDropdown()"
-                        class="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#123A7D]/50 transition-all duration-200 flex items-center gap-2"
-                    >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                        </svg>
-                        Change Status
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div 
-                        id="bulk-status-dropdown"
-                        class="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10 hidden"
-                    >
-                        <button onclick="bulkUpdateStatus('open')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Open</button>
-                        <button onclick="bulkUpdateStatus('unclaimed')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Unclaimed</button>
-                        <button onclick="bulkUpdateStatus('matched')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Matched</button>
-                        <button onclick="bulkUpdateStatus('returned')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Returned</button>
-                        <button onclick="bulkUpdateStatus('closed')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Closed</button>
-                    </div>
-                </div>
-                
-                <button 
-                    onclick="bulkExportSelected()"
-                    class="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#123A7D]/50 transition-all duration-200 flex items-center gap-2"
-                >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    Export Selected
-                </button>
-                
                 <button 
                     onclick="bulkDeleteSelected()"
                     class="bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-200 flex items-center gap-2"
@@ -707,25 +727,53 @@
 
 <script>
     function confirmDelete(itemId) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "This action cannot be undone!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'Cancel',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show deleting modal
-                if (typeof showDeleting === 'function') {
-                    showDeleting('Deleting item...');
-                }
-                
-                document.getElementById('delete-form-' + itemId)?.submit();
-            }
-        });
+        const form = document.getElementById('delete-form-' + itemId);
+        if (!form) return;
+        
+        const itemType = form.querySelector('input[name="type"]')?.value || '';
+        openDeleteModal(itemId, itemType);
+    }
+    
+    function openDeleteModal(itemId, itemType) {
+        const modal = document.getElementById('deleteItemModal');
+        const form = document.getElementById('deleteItemForm');
+        const typeInput = document.getElementById('delete-item-type');
+        const deleteForm = document.getElementById('delete-form-' + itemId);
+        
+        if (!modal || !form || !deleteForm) return;
+        
+        // Set form action
+        form.action = deleteForm.action;
+        if (typeInput) {
+            typeInput.value = itemType;
+        }
+        
+        // Show modal
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        const content = document.getElementById('deleteItemModalContent');
+        if (content) {
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+    }
+    
+    function hideDeleteModal() {
+        const modal = document.getElementById('deleteItemModal');
+        if (!modal) return;
+        
+        const content = document.getElementById('deleteItemModalContent');
+        if (content) {
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+        }
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }, 300);
     }
 
     function showImageModal(imageSrc, title) {
@@ -1169,20 +1217,22 @@
             return div.innerHTML;
         };
         
-        // Build status options based on item type
+        // Build status options based on item type (aligned with enum values)
         const statusOptions = item.type === 'lost' 
-            ? ['open', 'matched', 'closed']
-            : ['unclaimed', 'matched', 'returned'];
+            ? [
+                { value: 'LOST_REPORTED', label: 'Lost Reported' },
+                { value: 'RESOLVED', label: 'Resolved' },
+            ]
+            : [
+                { value: 'FOUND_UNCLAIMED', label: 'Found Unclaimed' },
+                { value: 'CLAIM_PENDING', label: 'Claim Pending' },
+                { value: 'CLAIM_APPROVED', label: 'Claim Approved' },
+                { value: 'COLLECTED', label: 'Collected' },
+            ];
         
-        const statusOptionsHTML = statusOptions.map(status => {
-            const statusLabels = {
-                'open': 'Open',
-                'matched': 'Matched',
-                'closed': 'Closed',
-                'unclaimed': 'Unclaimed',
-                'returned': 'Returned'
-            };
-            return `<option value="${status}" ${item.status === status ? 'selected' : ''}>${statusLabels[status]}</option>`;
+        const normalizedStatus = (item.status || '').toString();
+        const statusOptionsHTML = statusOptions.map(option => {
+            return `<option value="${option.value}" ${normalizedStatus === option.value ? 'selected' : ''}>${option.label}</option>`;
         }).join('');
         
         // Build category options
@@ -1403,10 +1453,17 @@
                 hideLoadingModal();
             }
             
-            if (data.success) {
+            const requestSucceeded = status >= 200 && status < 300;
+
+            if (requestSucceeded) {
+                const successMessage =
+                    data?.meta?.message ||
+                    data?.message ||
+                    'Item updated successfully.';
+
                 // Show success banner notification
                 if (typeof showNotificationBanner === 'function') {
-                    showNotificationBanner(data.message || 'Item updated successfully.', 'success', 3000);
+                    showNotificationBanner(successMessage, 'success', 3000);
                 }
                 
                 // Close modal and reload after a short delay
@@ -1484,53 +1541,7 @@
 
     // Confirm Delete from Modal
     function confirmDeleteModal(itemId, itemType) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Delete Item?',
-                text: 'This action cannot be undone.',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Yes, delete it',
-                cancelButtonText: 'Cancel',
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Show deleting modal
-                    if (typeof showDeleting === 'function') {
-                        showDeleting('Deleting item...');
-                    }
-                    
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = '{{ route("items.destroy", ":id") }}'.replace(':id', itemId);
-                    form.innerHTML = `
-                        @csrf
-                        @method('DELETE')
-                        <input type="hidden" name="type" value="${itemType}">
-                    `;
-                    document.body.appendChild(form);
-                    form.submit();
-                }
-            });
-        } else {
-            if (confirm('Are you sure you want to delete this item?')) {
-                // Show deleting modal
-                if (typeof showDeleting === 'function') {
-                    showDeleting('Deleting item...');
-                }
-                
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '{{ route("items.destroy", ":id") }}'.replace(':id', itemId);
-                form.innerHTML = `
-                    @csrf
-                    @method('DELETE')
-                    <input type="hidden" name="type" value="${itemType}">
-                `;
-                document.body.appendChild(form);
-                form.submit();
-            }
-        }
+        closeItemModal();
+        setTimeout(() => openDeleteModal(itemId, itemType), 300);
     }
 </script>

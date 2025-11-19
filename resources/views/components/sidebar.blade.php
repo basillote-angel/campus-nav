@@ -1,7 +1,8 @@
 @php
     $isCollapsed = false;
-    $pendingCount = \App\Models\FoundItem::where('status', 'matched')->count();
-    $urgentCount = \App\Models\FoundItem::where('status', 'matched')
+    use App\Enums\FoundItemStatus;
+    $pendingCount = \App\Models\FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)->count();
+    $urgentCount = \App\Models\FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)
         ->whereNotNull('claimed_at')
         ->where('claimed_at', '<', now()->subHours(24))
         ->count();

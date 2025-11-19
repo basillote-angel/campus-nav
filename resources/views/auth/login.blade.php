@@ -113,7 +113,7 @@
                         
                         <div class="flex items-center justify-between text-xs text-slate-500">
                             <label class="inline-flex items-center gap-2">
-                                <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-[#123a7d] focus:ring-[#123a7d]/40">
+                                <input type="checkbox" name="remember" class="h-4 w-4 rounded border-slate-300 text-[#123a7d] focus:ring-[#123a7d]/40">
                                 Remember me
                             </label>
                             <a href="mailto:{{ $supportEmail }}" class="font-semibold text-[#123a7d] hover:underline">Forgot password?</a>
