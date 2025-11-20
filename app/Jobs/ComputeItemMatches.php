@@ -62,10 +62,17 @@ class ComputeItemMatches implements ShouldQueue
                 // Send notification only for NEW matches
                 if (!$existingMatch && $item->user_id) {
                     $scorePercent = number_format($score * 100, 1);
+					$referenceItem = FoundItem::find($reference->id);
+					$notification = \App\Services\NotificationMessageService::generate('matchFound', [
+						'item_title' => $item->title,
+						'match_title' => $referenceItem?->title ?? 'a matching item',
+						'score' => $scorePercent,
+						'user_name' => $item->user?->name ?? 'Student',
+					]);
                     SendNotificationJob::dispatch(
                         $item->user_id, // Notify owner of the lost item
-                        'Potential Match Found! 🎯',
-                        "A found item matches your lost item '{$item->title}' ({$scorePercent}% match). Check it out!",
+                        $notification['title'],
+                        $notification['body'],
                         'matchFound',
                         $reference->id, // Related item ID (the found item)
                         $scorePercent
@@ -104,10 +111,17 @@ class ComputeItemMatches implements ShouldQueue
             // Send notification only for NEW matches
             if (!$existingMatch && $item->user_id) {
                 $scorePercent = number_format($score * 100, 1);
+				$referenceItem = LostItem::find($reference->id);
+				$notification = \App\Services\NotificationMessageService::generate('matchFound', [
+					'item_title' => $item->title,
+					'match_title' => $referenceItem?->title ?? 'a matching item',
+					'score' => $scorePercent,
+					'user_name' => $item->user?->name ?? 'Student',
+				]);
                 SendNotificationJob::dispatch(
                     $item->user_id, // Notify owner of the found item
-                    'Potential Match Found! 🎯',
-                    "A lost item matches your found item '{$item->title}' ({$scorePercent}% match). Check it out!",
+                    $notification['title'],
+                    $notification['body'],
                     'matchFound',
                     $reference->id, // Related item ID (the lost item)
                     $scorePercent

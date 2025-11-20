@@ -153,9 +153,19 @@
                             </svg>
                             @if($pendingCount > 0)
                                 <span 
-                                    class="absolute -top-1 -right-1 {{ $badgeColor }} text-white text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 shadow-lg ring-2 ring-white {{ $urgentCount > 0 ? 'animate-pulse' : '' }}"
+                                    data-notification-badge
+                                    data-pending-claims-count="{{ $pendingCount }}"
+                                    class="notification-badge absolute -top-1 -right-1 {{ $badgeColor }} text-white text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 shadow-lg ring-2 ring-white {{ $urgentCount > 0 ? 'animate-pulse' : '' }}"
                                 >
                                     {{ $pendingCount > 99 ? '99+' : $pendingCount }}
+                                </span>
+                            @else
+                                <span 
+                                    data-notification-badge
+                                    data-pending-claims-count="0"
+                                    class="notification-badge absolute -top-1 -right-1 {{ $badgeColor }} text-white text-[10px] font-bold rounded-full min-w-[20px] h-[20px] flex items-center justify-center px-1.5 shadow-lg ring-2 ring-white hidden"
+                                >
+                                    0
                                 </span>
                             @endif
                         </div>

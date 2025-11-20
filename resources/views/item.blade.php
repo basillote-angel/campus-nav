@@ -12,18 +12,16 @@
         title="Lost and Found Items"
         description="View and manage lost and found items in the system"
     >
-        {{-- Export Dropdown --}}
-        <x-ui.export-dropdown 
-            id="export-dropdown"
-            :routes="[
-                'csv' => route('items.export', array_merge(request()->query(), ['format' => 'csv'])),
-                'pdf' => route('items.export', array_merge(request()->query(), ['format' => 'pdf']))
-            ]"
-            :labels="[
-                'csv' => 'Export Items (CSV)',
-                'pdf' => 'Export Items (PDF)'
-            ]"
-        />
+        {{-- Export Button --}}
+        <a 
+            href="{{ route('items.export', array_merge(request()->query(), ['format' => 'csv'])) }}"
+            class="w-full sm:w-auto bg-white border border-gray-300 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#123A7D]/50 transition-all duration-200 flex items-center justify-center gap-2 min-h-[44px]"
+        >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            Export CSV
+        </a>
         
         {{-- Add New Item Button --}}
         <button 

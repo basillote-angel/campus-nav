@@ -276,10 +276,21 @@ class ClaimsController extends Controller
 					'source' => 'campus-nav.admin',
 				];
 
+				// Use NotificationMessageService for formal message
+				$notification = \App\Services\NotificationMessageService::generate('claimApproved', [
+					'item_title' => $itemTitle,
+					'collection_location' => $item->collection_location ?? $officeLocation,
+					'collection_deadline' => $collectionDeadline,
+					'collection_instructions' => $item->collection_instructions ?? null,
+					'office_hours' => $officeHours,
+					'contact_info' => $contactInfo,
+					'claimant_name' => $winningClaim->claimant?->name ?? null,
+				]);
+				
                 SendNotificationJob::dispatch(
 					$winningClaim->claimant_id,
-                    'Claim Approved! ✅',
-                    $notificationBody,
+                    $notification['title'],
+                    $notification['body'],
                     'claimApproved',
 					$id,
 					null,
@@ -313,12 +324,15 @@ class ClaimsController extends Controller
 					continue;
 				}
 
-				$notificationBody = "Another claimant was approved for '{$itemTitle}', so your claim was closed.\n\n";
-				$notificationBody .= "Here are tips if you submit again:\n";
-				$notificationBody .= "• Include brand, model, or unique identifiers\n";
-				$notificationBody .= "• Mention where and when it was lost\n";
-				$notificationBody .= "• Attach proof of ownership if possible\n\n";
-				$notificationBody .= "Need help? {$contactEmail} / {$contactPhone}.";
+				// Use NotificationMessageService for formal rejection message
+				$notification = \App\Services\NotificationMessageService::generate('claimRejected', [
+					'item_title' => $itemTitle,
+					'rejection_reason' => 'Another claimant provided stronger proof of ownership and was approved for this item.',
+					'user_name' => $losingClaim->claimant?->name ?? 'Student',
+					'contact_email' => $contactEmail,
+					'contact_phone' => $contactPhone,
+				]);
+				$notificationBody = $notification['body'];
 
 				$loserEventContext = [
 					'type' => 'claim.rejected',
@@ -347,8 +361,8 @@ class ClaimsController extends Controller
 
 				SendNotificationJob::dispatch(
 					$losingClaim->claimant_id,
-					'Claim Closed',
-					$notificationBody,
+					$notification['title'],
+					$notification['body'],
 					'claimRejected',
 					$id,
 					null,
@@ -429,11 +443,15 @@ class ClaimsController extends Controller
 			$rejectedClaim?->loadMissing('claimant');
 
 			if ($rejectedClaim && $rejectedClaim->claimant_id) {
-                $notificationBody = "Your claim for '{$itemTitle}' was rejected.\n\n";
-                if (!empty($reason)) {
-                    $notificationBody .= "Reason: {$reason}\n\n";
-                }
-				$notificationBody .= "You can submit a new claim with more specific details or contact the admin office for clarification.";
+				// Use NotificationMessageService for formal rejection message
+				$notification = \App\Services\NotificationMessageService::generate('claimRejected', [
+					'item_title' => $itemTitle,
+					'rejection_reason' => !empty($reason) ? $reason : 'The provided information did not sufficiently match the item details.',
+					'user_name' => $rejectedClaim->claimant?->name ?? 'Student',
+					'contact_email' => $contactEmail,
+					'contact_phone' => $contactPhone,
+				]);
+				$notificationBody = $notification['body'];
                 
 				$rejectionEventContext = [
 					'type' => 'claim.rejected',
@@ -462,8 +480,8 @@ class ClaimsController extends Controller
 
                 SendNotificationJob::dispatch(
 					$rejectedClaim->claimant_id,
-                    'Claim Rejected',
-                    $notificationBody,
+                    $notification['title'],
+                    $notification['body'],
                     'claimRejected',
 					$id,
 					null,
@@ -577,9 +595,14 @@ class ClaimsController extends Controller
 				->update(['status' => 'expired']);
 
 			if ($claimantId) {
-				$notificationBody = "The approval for '{$itemTitle}' was cancelled by the admin.\n\n";
-				$notificationBody .= "The item is now open again for other claimants.\n";
-				$notificationBody .= "If this was a mistake, please submit a new claim with additional proof of ownership.";
+				// Use NotificationMessageService for formal cancellation message
+				$notification = \App\Services\NotificationMessageService::generate('claimCancelled', [
+					'item_title' => $itemTitle,
+					'user_name' => $cancelledClaimant?->name ?? 'Student',
+					'contact_email' => $contactEmail,
+					'contact_phone' => $contactPhone,
+				]);
+				$notificationBody = $notification['body'];
 
 				$cancelEventContext = [
 					'type' => 'claim.rejected',
@@ -608,8 +631,8 @@ class ClaimsController extends Controller
 
 				SendNotificationJob::dispatch(
 					$claimantId,
-					'Claim Approval Cancelled',
-					$notificationBody,
+					$notification['title'],
+					$notification['body'],
 					'claimCancelled',
 					$item->id,
 					null,

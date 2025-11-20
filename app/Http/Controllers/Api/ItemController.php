@@ -149,11 +149,22 @@ class ItemController extends Controller
                 ], 403);
             }
 
+            // Ensure category_id is an integer
+            $categoryId = (int) $validated['category_id'];
+            
+            // Verify category exists (validation already checks this, but double-check for safety)
+            if (!\App\Models\Category::where('id', $categoryId)->exists()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => ['category_id' => ['The selected category does not exist.']]
+                ], 422);
+            }
+
             $item = null;
             if ($request->type === 'lost') {
                 $item = LostItem::create([
                     'user_id' => $userId,
-                    'category_id' => $validated['category_id'],
+                    'category_id' => $categoryId,
                     'title' => $validated['title'],
                     'description' => $validated['description'],
                     'image_path' => $request->image_path,
@@ -164,7 +175,7 @@ class ItemController extends Controller
             } else {
                 $item = FoundItem::create([
                     'user_id' => $userId,
-                    'category_id' => $validated['category_id'],
+                    'category_id' => $categoryId,
                     'title' => $validated['title'],
                     'description' => $validated['description'],
                     'image_path' => $request->image_path,
@@ -266,6 +277,9 @@ class ItemController extends Controller
 
     public function update(Request $request, $id, AIService $aiService)
     {
+        // Ensure we always return JSON for API requests
+        $request->headers->set('Accept', 'application/json');
+        
         try {
             $item = LostItem::find($id) ?: FoundItem::find($id);
 
@@ -300,11 +314,29 @@ class ItemController extends Controller
                     'status' => ['sometimes', Rule::in(LostItemStatus::values())],
                 ]);
 
-                $payload = $request->only(['title','category_id','description','location','date_lost','status']);
-                if (!empty($payload['date_lost'])) {
-                    $payload['date_lost'] = Carbon::parse($payload['date_lost'])->format('Y-m-d');
+                $payload = [];
+                if ($request->has('title')) {
+                    $payload['title'] = $request->input('title');
                 }
-                $item->update($payload);
+                if ($request->has('category_id') && $request->filled('category_id')) {
+                    $payload['category_id'] = (int) $request->input('category_id');
+                }
+                if ($request->has('description')) {
+                    $payload['description'] = $request->input('description');
+                }
+                if ($request->has('location')) {
+                    $payload['location'] = $request->input('location');
+                }
+                if ($request->has('date_lost') && $request->filled('date_lost')) {
+                    $payload['date_lost'] = Carbon::parse($request->input('date_lost'))->format('Y-m-d');
+                }
+                if ($request->has('status') && $request->filled('status')) {
+                    $payload['status'] = $request->input('status');
+                }
+                
+                if (!empty($payload)) {
+                    $item->update($payload);
+                }
             } else {
                 $request->validate([
                     'title' => 'sometimes|string',
@@ -316,14 +348,32 @@ class ItemController extends Controller
                     'status' => ['sometimes', Rule::in(FoundItemStatus::values())],
                 ]);
 
-                $payload = $request->only(['title','category_id','description','location','date_found','status','collection_deadline']);
-                if (!empty($payload['date_found'])) {
-                    $payload['date_found'] = Carbon::parse($payload['date_found'])->format('Y-m-d');
+                $payload = [];
+                if ($request->has('title')) {
+                    $payload['title'] = $request->input('title');
                 }
-                if (!empty($payload['collection_deadline'])) {
-                    $payload['collection_deadline'] = Carbon::parse($payload['collection_deadline'])->toDateTimeString();
+                if ($request->has('category_id') && $request->filled('category_id')) {
+                    $payload['category_id'] = (int) $request->input('category_id');
                 }
-                $item->update($payload);
+                if ($request->has('description')) {
+                    $payload['description'] = $request->input('description');
+                }
+                if ($request->has('location')) {
+                    $payload['location'] = $request->input('location');
+                }
+                if ($request->has('date_found') && $request->filled('date_found')) {
+                    $payload['date_found'] = Carbon::parse($request->input('date_found'))->format('Y-m-d');
+                }
+                if ($request->has('status') && $request->filled('status')) {
+                    $payload['status'] = $request->input('status');
+                }
+                if ($request->has('collection_deadline') && $request->filled('collection_deadline')) {
+                    $payload['collection_deadline'] = Carbon::parse($request->input('collection_deadline'))->toDateTimeString();
+                }
+                
+                if (!empty($payload)) {
+                    $item->update($payload);
+                }
             }
 
             $matchesQueued = (bool) $request->boolean('include_matches', false);
@@ -555,20 +605,27 @@ class ItemController extends Controller
 			$meta['claimId'] = $claim->id;
 
 			// Notify claimant that their claim was submitted
+			$notification = \App\Services\NotificationMessageService::generate('claimSubmitted', [
+				'item_title' => $item->title,
+				'user_name' => $user->name,
+			]);
 			SendNotificationJob::dispatch(
 				$user->id,
-				'Claim Submitted',
-				"Your claim for '{$item->title}' has been submitted. The admin will review it soon.",
+				$notification['title'],
+				$notification['body'],
 				'claimSubmitted',
 				$claim->id
 			);
 
 			$admins = \App\Models\User::where('role', 'admin')->get();
 			foreach ($admins as $admin) {
+				$notification = \App\Services\NotificationMessageService::generate('multipleClaims', [
+					'item_title' => $item->title,
+				]);
 				SendNotificationJob::dispatch(
 					$admin->id,
-					'⚠️ Multiple Claims for Item',
-					"Item '{$item->title}' has multiple pending claims. Please review.",
+					$notification['title'],
+					$notification['body'],
 					'multipleClaims',
 					$item->id
 				);
@@ -603,10 +660,14 @@ class ItemController extends Controller
 		$meta['message'] = 'Claim submitted. Admin will review shortly.';
 
 		// Notify claimant that their claim was submitted
+		$notification = \App\Services\NotificationMessageService::generate('claimSubmitted', [
+			'item_title' => $item->title,
+			'user_name' => $user->name,
+		]);
 		SendNotificationJob::dispatch(
 			$user->id,
-			'Claim Submitted',
-			"Your claim for '{$item->title}' has been submitted. The admin will review it soon.",
+			$notification['title'],
+			$notification['body'],
 			'claimSubmitted',
 			$claimRecord->id
 		);
@@ -619,10 +680,18 @@ class ItemController extends Controller
 		$categoryName = $item->category ? $item->category->name : 'Unknown';
 
 		foreach ($admins as $admin) {
+			$notification = \App\Services\NotificationMessageService::generate('newClaim', [
+				'item_title' => $item->title,
+				'claimant_name' => $user->name,
+				'claimant_email' => $user->email,
+				'category' => $categoryName,
+				'location' => $item->location,
+				'message_preview' => $claimMessagePreview,
+			]);
 			SendNotificationJob::dispatch(
 				$admin->id,
-				'🆕 New Claim Submitted',
-				"{$user->name} ({$user->email}) claimed item '{$item->title}'. Category: {$categoryName}. Location: {$item->location}. Message: {$claimMessagePreview}",
+				$notification['title'],
+				$notification['body'],
 				'newClaim',
 				$item->id
 			);

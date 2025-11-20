@@ -808,6 +808,24 @@
             });
         };
 
+        const formatSubmittedDate = (value) => {
+            if (!value) return '';
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) {
+                return '';
+            }
+            const month = parsed.toLocaleString('en-US', { month: 'long' });
+            const day = parsed.getDate();
+            const year = parsed.getFullYear();
+            const time = parsed.toLocaleString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+            // Format: "Submitted November 19, 2025 at 08:03 AM"
+            return `Submitted ${month} ${day}, ${year} at ${time}`;
+        };
+
         const formatDateShort = (value) => {
             if (!value) return 'N/A';
             const parsed = new Date(value);
@@ -863,58 +881,124 @@
 
         const claimsHtml = hasPendingClaims
             ? `
-                <div class="bg-white border border-gray-200 rounded-xl p-6">
-                    <div class="flex items-center gap-2 mb-4">
-                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                        <h3 class="text-lg font-semibold text-gray-900">Pending Claims (${claims.length})</h3>
+                <div class="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
+                    <div class="flex items-center gap-2 mb-4 sm:mb-6">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-indigo-100">
+                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base sm:text-lg font-semibold text-gray-900">Pending Claims</h3>
+                            <p class="text-xs sm:text-sm text-gray-500">${claims.length} ${claims.length === 1 ? 'claim' : 'claims'} awaiting review</p>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="flex flex-col gap-4 sm:gap-6">
                         ${claims.map((entry, index) => `
-                            <div class="border border-gray-200 rounded-xl p-4 ${index === 0 ? 'bg-blue-50/40' : 'bg-gray-50'} flex flex-col h-full">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex-1">
-                                        <div class="flex items-center justify-between gap-4">
-                                            <div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-sm font-semibold text-gray-900">${escapeHtml(entry.claimantName)}</span>
-                                                    ${entry.claimantEmail ? `<span class="text-xs text-gray-500">${escapeHtml(entry.claimantEmail)}</span>` : ''}
+                            <div class="relative border-2 ${index === 0 ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50/30' : 'border-gray-200 bg-white'} rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col">
+                                <div class="flex-1 space-y-4">
+                                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-start gap-3">
+                                                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-sm">
+                                                    <span class="text-white text-sm font-semibold">${escapeHtml(entry.claimantName).charAt(0).toUpperCase()}</span>
                                                 </div>
-                                                <p class="text-xs text-gray-500 mt-1">Submitted: ${formatDateTime(entry.createdAt)}</p>
+                                                <div class="flex-1 min-w-0">
+                                                    <h4 class="text-sm sm:text-base font-semibold text-gray-900 truncate">${escapeHtml(entry.claimantName)}</h4>
+                                                    ${entry.claimantEmail ? `
+                                                        <div class="flex items-center gap-1.5 mt-1">
+                                                            <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                                            </svg>
+                                                            <p class="text-xs sm:text-sm text-gray-600 truncate">${escapeHtml(entry.claimantEmail)}</p>
+                                                        </div>
+                                                    ` : ''}
+                                                    <div class="flex items-center gap-2 mt-2">
+                                                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                        </svg>
+                                                        <p class="text-xs text-gray-500">Submitted ${formatDateTime(entry.createdAt)}</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            ${entry.similarity ? `
-                                                <div class="text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1">
-                                                    Match ${entry.similarity}%
-                                                </div>
-                                            ` : ''}
                                         </div>
-                                        ${entry.contactName || entry.contactInfo ? `
-                                            <div class="mt-3 text-xs text-gray-600 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                ${entry.contactName ? `<p><span class="font-medium text-gray-700">Contact Name:</span> ${escapeHtml(entry.contactName)}</p>` : ''}
-                                                ${entry.contactInfo ? `<p><span class="font-medium text-gray-700">Contact Details:</span> ${escapeHtml(entry.contactInfo)}</p>` : ''}
+                                        ${entry.similarity ? `
+                                            <div class="flex-shrink-0">
+                                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-100 border border-indigo-200 shadow-sm">
+                                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    ${entry.similarity}% Match
+                                                </div>
                                             </div>
                                         ` : ''}
-                                        <div class="mt-3 bg-white border border-gray-200 rounded-lg p-3">
-                                            <p class="text-sm text-gray-700 whitespace-pre-wrap">${escapeHtml(entry.message)}</p>
+                                    </div>
+
+                                    ${entry.contactName || entry.contactInfo ? `
+                                        <div class="pt-3 border-t border-gray-200">
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                ${entry.contactName ? `
+                                                    <div class="flex items-start gap-2">
+                                                        <svg class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                                        </svg>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Contact Name</p>
+                                                            <p class="text-sm font-medium text-gray-900">${escapeHtml(entry.contactName)}</p>
+                                                        </div>
+                                                    </div>
+                                                ` : ''}
+                                                ${entry.contactInfo ? `
+                                                    <div class="flex items-start gap-2">
+                                                        <svg class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                                        </svg>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Contact Info</p>
+                                                            <p class="text-sm font-medium text-gray-900 break-words">${escapeHtml(entry.contactInfo)}</p>
+                                                        </div>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="flex flex-col items-end gap-2">
-                                        <form method="post" action="${claim.approveUrl}" onsubmit="return confirm('Approve this claim?');" class="w-full">
-                                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                                            <input type="hidden" name="claim_id" value="${entry.id}">
-                                            <button type="submit" class="w-full px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors">
-                                                Approve
-                                            </button>
-                                        </form>
-                                        <button 
-                                            type="button"
-                                            onclick="closeClaimModal(); setTimeout(() => openRejectModal(${claim.id}, ${entry.id}), 300);"
-                                            class="w-full px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                                        >
-                                            Reject
+                                    ` : ''}
+
+                                    ${entry.message ? `
+                                        <div class="pt-3 border-t border-gray-200">
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                                                </svg>
+                                                Claim Message
+                                            </p>
+                                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
+                                                <p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">${escapeHtml(entry.message)}</p>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+
+                                <div class="pt-4 mt-4 border-t border-gray-200 flex flex-col sm:flex-row gap-2">
+                                    <form method="post" action="${claim.approveUrl}" onsubmit="return confirm('Approve this claim?');" class="flex-1">
+                                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="claim_id" value="${entry.id}">
+                                        <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-sm hover:shadow">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            Approve
                                         </button>
-                                    </div>
+                                    </form>
+                                    <button 
+                                        type="button"
+                                        onclick="closeClaimModal(); setTimeout(() => openRejectModal(${claim.id}, ${entry.id}), 300);"
+                                        class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 shadow-sm hover:shadow"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                        Reject
+                                    </button>
                                 </div>
                             </div>
                         `).join('')}
@@ -1117,35 +1201,72 @@
         `;
 
         const claimantCardHtml = claim.claimantName ? `
-            <div class="bg-white border border-gray-200 rounded-xl p-6">
-                <div class="mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-1">Claimant Information</h3>
-                    ${claim.claimantEmail ? `
-                        <p class="text-xs text-gray-500">${escapeHtml(claim.claimantEmail)}</p>
-                    ` : ''}
+            <div class="bg-white border-2 border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
+                <div class="flex items-center gap-3 mb-4 sm:mb-6">
+                    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-sm">
+                        <span class="text-white text-lg font-semibold">${escapeHtml(claim.claimantName).charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-1">Claimant Information</h3>
+                        ${claim.claimantEmail ? `
+                            <div class="flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                </svg>
+                                <p class="text-xs sm:text-sm text-gray-600 truncate">${escapeHtml(claim.claimantEmail)}</p>
+                            </div>
+                        ` : ''}
+                        ${(claim.tab === 'approved' || claim.tab === 'collected') && claim.claimedAt ? `
+                            <div class="flex items-center gap-1.5 mt-2">
+                                <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p class="text-xs sm:text-sm text-gray-600">${formatSubmittedDate(claim.claimedAt)}</p>
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
-                <div class="space-y-4">
+                <div class="space-y-4 sm:space-y-5">
                     ${(claim.claimantContactName || claim.claimantContactInfo) ? `
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 pt-4 border-t border-gray-200">
                             ${claim.claimantContactName ? `
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-500 uppercase mb-1.5">Contact Name</label>
-                                    <p class="text-sm text-gray-900 font-medium">${escapeHtml(claim.claimantContactName)}</p>
+                                <div class="flex items-start gap-2.5">
+                                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Contact Name</label>
+                                        <p class="text-sm sm:text-base text-gray-900 font-medium">${escapeHtml(claim.claimantContactName)}</p>
+                                    </div>
                                 </div>
                             ` : ''}
                             ${claim.claimantContactInfo ? `
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-500 uppercase mb-1.5">Contact Information</label>
-                                    <p class="text-sm text-gray-900 font-medium">${escapeHtml(claim.claimantContactInfo)}</p>
+                                <div class="flex items-start gap-2.5">
+                                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Contact Information</label>
+                                        <p class="text-sm sm:text-base text-gray-900 font-medium break-words">${escapeHtml(claim.claimantContactInfo)}</p>
+                                    </div>
                                 </div>
                             ` : ''}
                         </div>
                     ` : ''}
                     ${claim.claimMessage ? `
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase mb-1.5">Description</label>
-                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                <p class="text-sm text-gray-700 whitespace-pre-wrap">${escapeHtml(claim.claimMessage)}</p>
+                        <div class="pt-4 border-t border-gray-200">
+                            <div class="flex items-center gap-2 mb-2.5">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                                </svg>
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Claim Message</label>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4 sm:p-5 border border-gray-200">
+                                <p class="text-sm sm:text-base text-gray-700 whitespace-pre-wrap leading-relaxed">${escapeHtml(claim.claimMessage)}</p>
                             </div>
                         </div>
                     ` : ''}
@@ -1234,7 +1355,7 @@
                         <div class="space-y-6">
                             ${itemDetailsHtml}
 
-                            ${claimantCardHtml}
+                            ${!hasPendingClaims ? claimantCardHtml : ''}
 
                             ${timelineHtml}
 
