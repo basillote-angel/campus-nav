@@ -25,7 +25,7 @@ class SendNotificationJob implements ShouldQueue
     public string $type;
     public ?int $relatedId;
     public ?string $score;
-    public ?array $eventContext;
+    public ?array $eventContext = null;
 
     public $tries = 3;
     public $backoff = 10;
@@ -122,7 +122,7 @@ class SendNotificationJob implements ShouldQueue
 
     protected function dispatchDomainEvent(DomainEventService $events): void
     {
-        if (!$this->eventContext || empty($this->eventContext['type']) || empty($this->eventContext['payload'])) {
+        if (!isset($this->eventContext) || !$this->eventContext || empty($this->eventContext['type']) || empty($this->eventContext['payload'])) {
             return;
         }
 
