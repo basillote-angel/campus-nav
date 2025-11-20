@@ -22,13 +22,24 @@ return new class extends Migration
 			return false;
 		}
 
+		if ($driver === 'pgsql') {
+			// PostgreSQL uses pg_indexes to check for indexes
+			$result = DB::select(
+				"SELECT COUNT(*) as count FROM pg_indexes 
+                 WHERE schemaname = 'public' AND tablename = ? AND indexname = ?",
+				[$tableName, $indexName]
+			);
+			return isset($result[0]) && $result[0]->count > 0;
+		}
+
+		// MySQL
 		$dbName = DB::getDatabaseName();
 		$result = DB::select(
 			"SELECT COUNT(*) as count FROM information_schema.statistics 
              WHERE table_schema = ? AND table_name = ? AND index_name = ?",
 			[$dbName, $tableName, $indexName]
 		);
-		return $result[0]->count > 0;
+		return isset($result[0]) && $result[0]->count > 0;
 	}
 
     public function up(): void
