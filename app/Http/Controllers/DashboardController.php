@@ -22,6 +22,25 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    /**
+     * Get database-agnostic SQL for calculating difference in minutes between two timestamps
+     */
+    protected function getMinutesDiffSql(string $startColumn, string $endColumn): string
+    {
+        $driver = DB::connection()->getDriverName();
+        
+        if ($driver === 'pgsql') {
+            // PostgreSQL: EXTRACT(EPOCH FROM (end - start)) / 60
+            return "EXTRACT(EPOCH FROM ($endColumn - $startColumn)) / 60";
+        } elseif ($driver === 'sqlite') {
+            // SQLite: (julianday(end) - julianday(start)) * 1440
+            return "(julianday($endColumn) - julianday($startColumn)) * 1440";
+        } else {
+            // MySQL: TIMESTAMPDIFF(MINUTE, start, end)
+            return "TIMESTAMPDIFF(MINUTE, $startColumn, $endColumn)";
+        }
+    }
+
     public function index()
     {
         $ttl = now()->addSeconds((int) env('DASHBOARD_CACHE_TTL', 30));
@@ -49,21 +68,24 @@ class DashboardController extends Controller
         $claimedGrowthPercent = $claimedItems > 0 ? round((($claimedItems - $claimedItemsLastWeek) / max($claimedItemsLastWeek, 1)) * 100, 1) : 0;
 
         $decisionMetrics = Cache::remember('dash.decisionMetrics', $ttl, function () {
+            $approvedDiff = $this->getMinutesDiffSql('created_at', 'approved_at');
             $approvedAverage = ClaimedItem::whereNotNull('approved_at')
                 ->whereNotNull('created_at')
-                ->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, approved_at)) as minutes'))
+                ->select(DB::raw("AVG($approvedDiff) as minutes"))
                 ->value('minutes');
 
+            $rejectedDiff = $this->getMinutesDiffSql('created_at', 'rejected_at');
             $rejectedAverage = ClaimedItem::whereNotNull('rejected_at')
                 ->whereNotNull('created_at')
-                ->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, rejected_at)) as minutes'))
+                ->select(DB::raw("AVG($rejectedDiff) as minutes"))
                 ->value('minutes');
 
+            $combinedDiff = $this->getMinutesDiffSql('created_at', 'COALESCE(approved_at, rejected_at)');
             $combinedAverage = ClaimedItem::where(function ($query) {
                 $query->whereNotNull('approved_at')->orWhereNotNull('rejected_at');
             })
                 ->whereNotNull('created_at')
-                ->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, COALESCE(approved_at, rejected_at))) as minutes'))
+                ->select(DB::raw("AVG($combinedDiff) as minutes"))
                 ->value('minutes');
 
             return [
@@ -142,10 +164,11 @@ class DashboardController extends Controller
                 ->whereNotNull('collected_at')
                 ->count();
 
+            $collectionDiff = $this->getMinutesDiffSql('approved_at', 'collected_at');
             $averageMinutes = FoundItem::where('status', FoundItemStatus::COLLECTED->value)
                 ->whereNotNull('collected_at')
                 ->whereNotNull('approved_at')
-                ->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, approved_at, collected_at)) as avg_minutes'))
+                ->select(DB::raw("AVG($collectionDiff) as avg_minutes"))
                 ->value('avg_minutes');
 
             return [
@@ -707,21 +730,24 @@ class DashboardController extends Controller
 		$claimedGrowthPercent = $claimedItems > 0 ? round((($claimedItems - $claimedItemsLastWeek) / max($claimedItemsLastWeek, 1)) * 100, 1) : 0;
 		$foundLastWeek = FoundItem::where('created_at', '>=', now()->subWeek())->count();
 
+        $decisionApprovedDiff = $this->getMinutesDiffSql('created_at', 'approved_at');
         $decisionMetrics = FoundItem::whereNotNull('approved_at')
             ->whereNotNull('created_at')
-            ->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, approved_at)) as minutes'))
+            ->select(DB::raw("AVG($decisionApprovedDiff) as minutes"))
             ->value('minutes');
 
+        $decisionRejectedDiff = $this->getMinutesDiffSql('created_at', 'rejected_at');
         $rejectedAverage = FoundItem::whereNotNull('rejected_at')
             ->whereNotNull('created_at')
-            ->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, rejected_at)) as minutes'))
+            ->select(DB::raw("AVG($decisionRejectedDiff) as minutes"))
             ->value('minutes');
 
+        $decisionCombinedDiff = $this->getMinutesDiffSql('created_at', 'COALESCE(approved_at, rejected_at)');
         $combinedAverage = FoundItem::where(function ($query) {
             $query->whereNotNull('approved_at')->orWhereNotNull('rejected_at');
         })
             ->whereNotNull('created_at')
-            ->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, COALESCE(approved_at, rejected_at))) as minutes'))
+            ->select(DB::raw("AVG($decisionCombinedDiff) as minutes"))
             ->value('minutes');
 
 		$decisionAverageLabel = $combinedAverage !== null
@@ -771,10 +797,11 @@ class DashboardController extends Controller
 			->where('collection_deadline', '<', now())
 			->count();
 
+		$collectionAvgDiff = $this->getMinutesDiffSql('approved_at', 'collected_at');
 		$collectionAverageMinutes = FoundItem::where('status', FoundItemStatus::COLLECTED->value)
 			->whereNotNull('collected_at')
 			->whereNotNull('approved_at')
-			->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, approved_at, collected_at)) as avg_minutes'))
+			->select(DB::raw("AVG($collectionAvgDiff) as avg_minutes"))
 			->value('avg_minutes');
 
 		$collectionAverageLabel = $collectionAverageMinutes !== null
@@ -784,11 +811,12 @@ class DashboardController extends Controller
 			])
 			: 'N/A';
 
+		$decisionAvgDiff = $this->getMinutesDiffSql('created_at', 'COALESCE(approved_at, rejected_at)');
 		$decisionAverageMinutes = ClaimedItem::where(function ($query) {
 			$query->whereNotNull('approved_at')->orWhereNotNull('rejected_at');
 		})
 			->whereNotNull('created_at')
-			->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, COALESCE(approved_at, rejected_at))) as minutes'))
+			->select(DB::raw("AVG($decisionAvgDiff) as minutes"))
 			->value('minutes');
 
 		$decisionAverageLabel = $decisionAverageMinutes !== null
@@ -798,14 +826,16 @@ class DashboardController extends Controller
 			])
 			: 'N/A';
 
+		$decisionApprovedBreakdown = $this->getMinutesDiffSql('created_at', 'approved_at');
+		$decisionRejectedBreakdown = $this->getMinutesDiffSql('created_at', 'rejected_at');
 		$decisionBreakdown = [
 			'approved' => ClaimedItem::whereNotNull('approved_at')
 				->whereNotNull('created_at')
-				->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, approved_at)) as minutes'))
+				->select(DB::raw("AVG($decisionApprovedBreakdown) as minutes"))
 				->value('minutes'),
 			'rejected' => ClaimedItem::whereNotNull('rejected_at')
 				->whereNotNull('created_at')
-				->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, rejected_at)) as minutes'))
+				->select(DB::raw("AVG($decisionRejectedBreakdown) as minutes"))
 				->value('minutes'),
 		];
 
