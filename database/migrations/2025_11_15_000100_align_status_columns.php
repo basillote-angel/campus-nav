@@ -18,7 +18,13 @@ return new class extends Migration
 		}
 
 		// Lost items
-		DB::statement("ALTER TABLE lost_items MODIFY COLUMN status VARCHAR(32) NOT NULL DEFAULT 'LOST_REPORTED'");
+		if ($driver === 'pgsql') {
+			DB::statement("ALTER TABLE lost_items ALTER COLUMN status TYPE VARCHAR(32)");
+			DB::statement("ALTER TABLE lost_items ALTER COLUMN status SET NOT NULL");
+			DB::statement("ALTER TABLE lost_items ALTER COLUMN status SET DEFAULT 'LOST_REPORTED'");
+		} else {
+			DB::statement("ALTER TABLE lost_items MODIFY COLUMN status VARCHAR(32) NOT NULL DEFAULT 'LOST_REPORTED'");
+		}
 		DB::statement("
 			UPDATE lost_items
 			SET status = CASE status
@@ -30,7 +36,13 @@ return new class extends Migration
 		");
 
 		// Found items
-		DB::statement("ALTER TABLE found_items MODIFY COLUMN status VARCHAR(32) NOT NULL DEFAULT 'FOUND_UNCLAIMED'");
+		if ($driver === 'pgsql') {
+			DB::statement("ALTER TABLE found_items ALTER COLUMN status TYPE VARCHAR(32)");
+			DB::statement("ALTER TABLE found_items ALTER COLUMN status SET NOT NULL");
+			DB::statement("ALTER TABLE found_items ALTER COLUMN status SET DEFAULT 'FOUND_UNCLAIMED'");
+		} else {
+			DB::statement("ALTER TABLE found_items MODIFY COLUMN status VARCHAR(32) NOT NULL DEFAULT 'FOUND_UNCLAIMED'");
+		}
 		DB::statement("
 			UPDATE found_items
 			SET status = CASE status
@@ -43,7 +55,13 @@ return new class extends Migration
 		");
 
 		// Claimed items
-		DB::statement("ALTER TABLE claimed_items MODIFY COLUMN status VARCHAR(32) NOT NULL DEFAULT 'PENDING'");
+		if ($driver === 'pgsql') {
+			DB::statement("ALTER TABLE claimed_items ALTER COLUMN status TYPE VARCHAR(32)");
+			DB::statement("ALTER TABLE claimed_items ALTER COLUMN status SET NOT NULL");
+			DB::statement("ALTER TABLE claimed_items ALTER COLUMN status SET DEFAULT 'PENDING'");
+		} else {
+			DB::statement("ALTER TABLE claimed_items MODIFY COLUMN status VARCHAR(32) NOT NULL DEFAULT 'PENDING'");
+		}
 		DB::statement("
 			UPDATE claimed_items
 			SET status = CASE status
@@ -77,7 +95,14 @@ return new class extends Migration
 				ELSE LOWER(status)
 			END
 		");
-		DB::statement("ALTER TABLE claimed_items MODIFY COLUMN status ENUM('pending','approved','rejected','withdrawn') NOT NULL DEFAULT 'pending'");
+		if ($driver === 'pgsql') {
+			// PostgreSQL doesn't support ENUM like MySQL, so we'll keep VARCHAR
+			DB::statement("ALTER TABLE claimed_items ALTER COLUMN status TYPE VARCHAR(32)");
+			DB::statement("ALTER TABLE claimed_items ALTER COLUMN status SET NOT NULL");
+			DB::statement("ALTER TABLE claimed_items ALTER COLUMN status SET DEFAULT 'pending'");
+		} else {
+			DB::statement("ALTER TABLE claimed_items MODIFY COLUMN status ENUM('pending','approved','rejected','withdrawn') NOT NULL DEFAULT 'pending'");
+		}
 
 		// Found items
 		DB::statement("
@@ -90,7 +115,14 @@ return new class extends Migration
 				ELSE LOWER(status)
 			END
 		");
-		DB::statement("ALTER TABLE found_items MODIFY COLUMN status ENUM('unclaimed','matched','awaiting_collection','returned') NOT NULL DEFAULT 'unclaimed'");
+		if ($driver === 'pgsql') {
+			// PostgreSQL doesn't support ENUM like MySQL, so we'll keep VARCHAR
+			DB::statement("ALTER TABLE found_items ALTER COLUMN status TYPE VARCHAR(32)");
+			DB::statement("ALTER TABLE found_items ALTER COLUMN status SET NOT NULL");
+			DB::statement("ALTER TABLE found_items ALTER COLUMN status SET DEFAULT 'unclaimed'");
+		} else {
+			DB::statement("ALTER TABLE found_items MODIFY COLUMN status ENUM('unclaimed','matched','awaiting_collection','returned') NOT NULL DEFAULT 'unclaimed'");
+		}
 
 		// Lost items
 		DB::statement("
@@ -101,7 +133,14 @@ return new class extends Migration
 				ELSE LOWER(status)
 			END
 		");
-		DB::statement("ALTER TABLE lost_items MODIFY COLUMN status ENUM('open','matched','closed') NOT NULL DEFAULT 'open'");
+		if ($driver === 'pgsql') {
+			// PostgreSQL doesn't support ENUM like MySQL, so we'll keep VARCHAR
+			DB::statement("ALTER TABLE lost_items ALTER COLUMN status TYPE VARCHAR(32)");
+			DB::statement("ALTER TABLE lost_items ALTER COLUMN status SET NOT NULL");
+			DB::statement("ALTER TABLE lost_items ALTER COLUMN status SET DEFAULT 'open'");
+		} else {
+			DB::statement("ALTER TABLE lost_items MODIFY COLUMN status ENUM('open','matched','closed') NOT NULL DEFAULT 'open'");
+		}
 	}
 
 	private function convertStatusToVarcharSqlite(): void

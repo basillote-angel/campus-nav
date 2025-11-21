@@ -9,7 +9,9 @@ return new class extends Migration
 {
 	public function up(): void
 	{
-		if (Schema::getConnection()->getDriverName() === 'sqlite') {
+		$driver = Schema::getConnection()->getDriverName();
+		
+		if ($driver === 'sqlite') {
 			return;
 		}
 
@@ -19,7 +21,14 @@ return new class extends Migration
 		});
 
 		// Alter the column to support longer tokens (FCM tokens can be up to 2048 chars)
-		DB::statement('ALTER TABLE device_tokens MODIFY token VARCHAR(2048) NOT NULL');
+		if ($driver === 'pgsql') {
+			// PostgreSQL syntax
+			DB::statement('ALTER TABLE device_tokens ALTER COLUMN token TYPE VARCHAR(2048)');
+			DB::statement('ALTER TABLE device_tokens ALTER COLUMN token SET NOT NULL');
+		} else {
+			// MySQL syntax
+			DB::statement('ALTER TABLE device_tokens MODIFY token VARCHAR(2048) NOT NULL');
+		}
 
 		// Recreate the unique index
 		Schema::table('device_tokens', function (Blueprint $table) {
@@ -29,7 +38,9 @@ return new class extends Migration
 
 	public function down(): void
 	{
-		if (Schema::getConnection()->getDriverName() === 'sqlite') {
+		$driver = Schema::getConnection()->getDriverName();
+		
+		if ($driver === 'sqlite') {
 			return;
 		}
 
@@ -39,7 +50,14 @@ return new class extends Migration
 		});
 
 		// Revert to original length
-		DB::statement('ALTER TABLE device_tokens MODIFY token VARCHAR(255) NOT NULL');
+		if ($driver === 'pgsql') {
+			// PostgreSQL syntax
+			DB::statement('ALTER TABLE device_tokens ALTER COLUMN token TYPE VARCHAR(255)');
+			DB::statement('ALTER TABLE device_tokens ALTER COLUMN token SET NOT NULL');
+		} else {
+			// MySQL syntax
+			DB::statement('ALTER TABLE device_tokens MODIFY token VARCHAR(255) NOT NULL');
+		}
 
 		// Recreate the unique index
 		Schema::table('device_tokens', function (Blueprint $table) {
