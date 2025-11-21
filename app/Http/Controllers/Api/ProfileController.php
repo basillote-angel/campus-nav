@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
 use App\Http\Controllers\Controller;
-use App\Models\LostItem;
 use App\Models\FoundItem;
+use App\Models\LostItem;
 use App\Services\AIService;
 use Illuminate\Support\Facades\Auth;
 
@@ -39,14 +41,14 @@ class ProfileController extends Controller
         $postedFoundIds = $postedItems->filter(fn($x)=>$x['type']==='found')->map(fn($x)=>$x['model']->id)->all();
 
         $lostItems = LostItem::whereNotIn('id', $postedLostIds)
-            ->where('status', 'open')
+            ->where('status', LostItemStatus::LOST_REPORTED->value)
             ->latest('created_at')
             ->limit((int) env('AI_CANDIDATE_LIMIT', 200))
             ->get()
             ->all();
         
         $foundItems = FoundItem::whereNotIn('id', $postedFoundIds)
-            ->where('status', 'unclaimed')
+            ->where('status', FoundItemStatus::FOUND_UNCLAIMED->value)
             ->latest('created_at')
             ->limit((int) env('AI_CANDIDATE_LIMIT', 200))
             ->get()

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
 use App\Http\Controllers\Controller;
-use App\Models\LostItem;
 use App\Models\FoundItem;
+use App\Models\LostItem;
 use App\Services\AIService;
 use Illuminate\Support\Facades\Auth;
 
@@ -24,7 +26,7 @@ class RecommendationController extends Controller
             }
 
             $lostItems = LostItem::where('user_id', $user->id)
-                ->where('status', 'open')
+                ->where('status', LostItemStatus::LOST_REPORTED->value)
                 ->latest('created_at')
                 ->limit((int) env('AI_LOST_REF_LIMIT', 10))
                 ->get();
@@ -33,7 +35,7 @@ class RecommendationController extends Controller
                 return response()->json([], 200);
             }
 
-            $candidateFound = FoundItem::where('status', 'unclaimed')
+            $candidateFound = FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)
                 ->latest('created_at')
                 ->limit((int) env('AI_CANDIDATE_LIMIT', 200))
                 ->get();

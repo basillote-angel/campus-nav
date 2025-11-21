@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="bg-gradient-to-br from-blue-50 via-white to-indigo-50 min-h-full">
-    {{-- Page Header with Export Button --}}
+    {{-- Page Header --}}
     <div class="bg-white shadow-sm border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex items-center justify-between">
@@ -15,21 +15,6 @@
                     <div class="flex items-center gap-2 text-sm text-gray-600" id="auto-refresh-indicator" title="Auto-refreshing every 45 seconds">
                         <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" id="refresh-pulse"></div>
                     </div>
-                    
-                    {{-- Export Dropdown --}}
-                    <x-ui.export-dropdown 
-                        id="dashboard-export-dropdown"
-                        :routes="[
-                            'csv' => route('dashboard.export', ['format' => 'csv']),
-                            'csv-activity' => route('dashboard.export', ['format' => 'csv', 'type' => 'activity']),
-                            'pdf' => route('dashboard.export', ['format' => 'pdf'])
-                        ]"
-                        :labels="[
-                            'csv' => 'Export Analytics (CSV)',
-                            'csv-activity' => 'Export Activity Log (CSV)',
-                            'pdf' => 'Export Dashboard (PDF)'
-                        ]"
-                    />
                 </div>
             </div>
         </div>
@@ -152,22 +137,6 @@
             </div>
             </a>
 
-            {{-- Successful Matches --}}
-            <a href="{{ route('admin.matches.index') }}" class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-sm border border-purple-200 p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer group" data-stat-type="matches">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-purple-100">Successful Matches</p>
-                        <p class="text-3xl font-bold text-white mt-2" data-stat-value>{{ $successfulMatches }}</p>
-                        <p class="text-xs text-purple-100 mt-1">{{ $matchSuccessRate }}% success rate</p>
-                    </div>
-                    <div class="bg-white/20 p-3 rounded-lg group-hover:bg-white/30 transition-colors">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                    </div>
-                </div>
-            </a>
-
             {{-- Unclaimed Items --}}
             <a href="{{ route('item', ['type' => 'found', 'status' => 'unclaimed']) }}" class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-sm border border-yellow-200 p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer group" data-stat-type="unclaimed">
                 <div class="flex items-center justify-between">
@@ -210,6 +179,26 @@
                     <div class="bg-white/20 p-3 rounded-lg">
                         <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Awaiting Collection --}}
+            <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-sm border border-indigo-200 p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1" data-stat-type="collection-pending">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-indigo-100">Awaiting Collection</p>
+                        <p class="text-3xl font-bold text-white mt-2" data-stat-value>{{ $collectionPending }}</p>
+                        <p class="text-xs text-indigo-100 mt-1 flex items-center gap-1">
+                            <span data-stat-overdue>Overdue: {{ $collectionOverdue }}</span>
+                            <span>•</span>
+                            <span data-stat-average>Avg pickup {{ $collectionAverageLabel }}</span>
+                        </p>
+                    </div>
+                    <div class="bg-white/20 p-3 rounded-lg">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c1.657 0 3-1.567 3-3.5S13.657 1 12 1 9 2.567 9 4.5 10.343 8 12 8zm0 3c-2.21 0-4 1.567-4 3.5V17a1 1 0 001 1h6a1 1 0 001-1v-1.5c0-1.933-1.79-3.5-4-3.5zm7 0a3 3 0 00-2.995 2.824L16 14v2a1 1 0 001 1h3a1 1 0 001-1v-2c0-1.657-1.343-3-3-3z" />
                         </svg>
                     </div>
                 </div>
@@ -260,30 +249,49 @@
 
             <div class="flex flex-col gap-6">
                 {{-- Item Status Chart --}}
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h2 class="text-xl font-bold text-[#123A7D] mb-4">Item Status</h2>
-                    <div class="relative" style="height: 200px; max-height: 200px;">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                    <h2 class="text-lg font-bold text-[#123A7D] mb-3">Item Status</h2>
+                    <div class="relative" style="height: 150px; max-height: 150px;">
                         <canvas id="itemStatusChart"></canvas>
                     </div>
                 </div>
-                {{-- AI Match Success Gauge --}}
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6" data-stat-type="match-success">
-                    <h2 class="text-xl font-bold text-[#123A7D] mb-4">AI Match Success</h2>
-                    <div class="text-center my-4">
-                        <div class="text-5xl font-bold {{ $matchSuccessRatePercent >= 80 ? 'text-green-600' : ($matchSuccessRatePercent >= 60 ? 'text-yellow-600' : 'text-red-600') }}" data-stat-value>
-                            {{ $matchSuccessRatePercent }}
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6" id="claim-conflicts-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-[#123A7D]">Claim Conflicts</h2>
+                            <p class="text-xs text-gray-500 mt-1" data-conflict-status>
+                                @if(($claimConflictStats['total'] ?? 0) > 0)
+                                    {{ $claimConflictStats['total'] === 1 ? '1 item needs tie-break review' : $claimConflictStats['total'] . ' items need tie-break review' }}
+                                @else
+                                    No active conflicts
+                                @endif
+                            </p>
                         </div>
-                        <p class="text-sm text-gray-600 mt-2">Claimed / Found Items</p>
-                        <p class="text-xs {{ $matchSuccessGrowthPercent >= 0 ? 'text-green-500' : 'text-red-500' }} mt-1 flex items-center justify-center gap-1" data-stat-growth>
-                            @if($matchSuccessGrowthPercent >= 0)
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
-                                +{{ abs($matchSuccessGrowthPercent) }}%
-                            @else
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-                                {{ $matchSuccessGrowthPercent }}%
-                            @endif
-                            from last week
-                        </p>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100" data-conflict-total>{{ $claimConflictStats['total'] ?? 0 }}</span>
+                    </div>
+
+                    <div class="mt-4 {{ ($claimConflictStats['total'] ?? 0) === 0 ? '' : 'hidden' }}" data-conflict-empty>
+                        <div class="flex items-center gap-3 text-sm text-gray-500">
+                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span>All clear. No conflicting claims right now.</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 {{ ($claimConflictStats['total'] ?? 0) === 0 ? 'hidden' : '' }}" data-conflict-content>
+                        <div class="space-y-2 overflow-y-auto" style="max-height: 140px;" data-conflict-list>
+                            @forelse(collect($claimConflictStats['hotlist'] ?? []) as $item)
+                                <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                                    <div class="min-w-0 flex-1 pr-3">
+                                        <p class="text-sm font-bold text-gray-900 truncate">{{ $item['title'] }}</p>
+                                        <p class="text-xs text-gray-500 mt-0.5">{{ $item['category'] }} • {{ $item['ageHuman'] }}</p>
+                                    </div>
+                                    <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-3 py-1.5 whitespace-nowrap flex-shrink-0">{{ $item['totalClaims'] }} claims</span>
+                                </div>
+                            @empty
+                                <p class="text-xs text-gray-500 text-center py-4">Top conflict items will appear here.</p>
+                            @endforelse
+                        </div>
                     </div>
                 </div>
             </div>
@@ -368,7 +376,47 @@
                         @php
                             $activityColor = 'blue';
                             $activityIcon = 'M8 16l2.879-2.879a3 3 0 014.242 0L18 16m-6-8a3 3 0 100-6 3 3 0 000 6z';
-                            if (str_contains(strtolower($activity->action), 'approve') || str_contains(strtolower($activity->action), 'claim approved')) {
+                            $displayText = $activity->action;
+                            $details = is_array($activity->details) ? $activity->details : (is_string($activity->details) ? json_decode($activity->details, true) : []);
+                            
+                            // Format action text based on action type
+                            if (str_contains($activity->action, 'found_item_status_changed')) {
+                                $from = $details['from'] ?? '';
+                                $to = $details['to'] ?? '';
+                                $itemId = $details['found_item_id'] ?? '';
+                                
+                                if ($to === 'CLAIM_PENDING') {
+                                    $displayText = 'submitted a claim';
+                                    $activityColor = 'blue';
+                                    $activityIcon = 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
+                                } elseif ($to === 'CLAIM_APPROVED') {
+                                    $displayText = 'approved a claim';
+                                    $activityColor = 'green';
+                                    $activityIcon = 'M5 13l4 4L19 7';
+                                } elseif ($to === 'FOUND_UNCLAIMED' && $from === 'CLAIM_PENDING') {
+                                    $displayText = 'rejected a claim';
+                                    $activityColor = 'red';
+                                    $activityIcon = 'M6 18L18 6M6 6l12 12';
+                                } else {
+                                    $displayText = 'changed item status from ' . str_replace('_', ' ', strtolower($from)) . ' to ' . str_replace('_', ' ', strtolower($to));
+                                }
+                            } elseif (str_contains($activity->action, 'domain_event:claim.approved')) {
+                                $displayText = 'approved a claim';
+                                $activityColor = 'green';
+                                $activityIcon = 'M5 13l4 4L19 7';
+                            } elseif (str_contains($activity->action, 'domain_event:claim.rejected')) {
+                                $displayText = 'rejected a claim';
+                                $activityColor = 'red';
+                                $activityIcon = 'M6 18L18 6M6 6l12 12';
+                            } elseif (str_contains($activity->action, 'domain_event:claim.submitted')) {
+                                $displayText = 'submitted a claim';
+                                $activityColor = 'blue';
+                                $activityIcon = 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
+                            } elseif (str_contains($activity->action, 'claim_outcome_notification')) {
+                                $displayText = 'sent notification about claim outcome';
+                                $activityColor = 'purple';
+                                $activityIcon = 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9';
+                            } elseif (str_contains(strtolower($activity->action), 'approve') || str_contains(strtolower($activity->action), 'claim approved')) {
                                 $activityColor = 'green';
                                 $activityIcon = 'M5 13l4 4L19 7';
                             } elseif (str_contains(strtolower($activity->action), 'reject') || str_contains(strtolower($activity->action), 'claim rejected')) {
@@ -395,9 +443,9 @@
                                     @else
                                         <b>System</b>
                                     @endif
-                                    {{ $activity->action }}
-                                    @if($activity->details)
-                                        <span class="text-gray-500">{{ Str::limit($activity->details, 50) }}</span>
+                                    {{ $displayText }}
+                                    @if(isset($details['found_item_id']) && !str_contains($displayText, 'item'))
+                                        <span class="text-gray-500">(Item #{{ $details['found_item_id'] }})</span>
                                     @endif
                                 </p>
                                 <p class="text-xs text-gray-400 mt-1">{{ $activity->created_at->diffForHumans() }}</p>
@@ -442,9 +490,17 @@
 
     // Posts Over Time Chart
     const postsCtx = document.getElementById('postsOverTimeChart').getContext('2d');
-    const gradient = postsCtx.createLinearGradient(0, 0, 0, 350);
-    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
-    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+    
+    // Create gradients for both datasets
+    const foundGradient = postsCtx.createLinearGradient(0, 0, 0, 350);
+    foundGradient.addColorStop(0, 'rgba(59, 130, 246, 0.25)');
+    foundGradient.addColorStop(0.5, 'rgba(59, 130, 246, 0.15)');
+    foundGradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+    
+    const lostGradient = postsCtx.createLinearGradient(0, 0, 0, 350);
+    lostGradient.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
+    lostGradient.addColorStop(0.5, 'rgba(239, 68, 68, 0.15)');
+    lostGradient.addColorStop(1, 'rgba(239, 68, 68, 0)');
 
     let postsChart = new Chart(postsCtx, {
         type: 'line',
@@ -455,35 +511,133 @@
                     label: 'Lost Items',
                     data: @json($postsOverTimeData['lost']),
                     borderColor: 'rgba(239, 68, 68, 1)',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    borderWidth: 2,
-                    pointBackgroundColor: 'rgba(239, 68, 68, 1)',
-                    pointRadius: 4,
-                    tension: 0.4
+                    backgroundColor: lostGradient,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: 'rgba(239, 68, 68, 1)',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointHoverBackgroundColor: 'rgba(239, 68, 68, 1)',
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 3,
+                    tension: 0.5,
+                    fill: true,
+                    cubicInterpolationMode: 'monotone'
                 },
                 {
                     label: 'Found Items',
                     data: @json($postsOverTimeData['found']),
                     borderColor: 'rgba(59, 130, 246, 1)',
-                    backgroundColor: gradient,
+                    backgroundColor: foundGradient,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: 'rgba(59, 130, 246, 1)',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointHoverBackgroundColor: 'rgba(59, 130, 246, 1)',
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 3,
+                    tension: 0.5,
                     fill: true,
-                    borderWidth: 2,
-                    pointBackgroundColor: 'rgba(59, 130, 246, 1)',
-                    pointRadius: 4,
-                    tension: 0.4
+                    cubicInterpolationMode: 'monotone'
                 }
         ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: {
+                duration: 1000,
+                easing: 'easeInOutQuart'
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             plugins: {
-                legend: { position: 'bottom', align: 'start', labels: { usePointStyle: true, padding: 20 } },
-                tooltip: getChartTooltip()
+                legend: { 
+                    position: 'bottom', 
+                    align: 'center',
+                    labels: { 
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 13,
+                            weight: '600'
+                        },
+                        color: '#374151'
+                    },
+                    onClick: function() {}
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                    borderWidth: 1,
+                    cornerRadius: 10,
+                    padding: 12,
+                    displayColors: true,
+                    titleFont: {
+                        size: 14,
+                        weight: '600'
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.parsed.y + ' item' + (context.parsed.y !== 1 ? 's' : '');
+                            return label;
+                        }
+                    }
+                }
             },
             scales: {
-                x: getChartTicksX(),
-                y: getChartTicksY()
+                x: {
+                    ticks: { 
+                        color: '#6B7280', 
+                        font: { size: 12, weight: '500' }, 
+                        padding: 12,
+                        maxRotation: 45,
+                        minRotation: 0
+                    },
+                    grid: { 
+                        display: true,
+                        color: 'rgba(243, 244, 246, 0.8)',
+                        drawBorder: false,
+                        lineWidth: 1
+                    },
+                    border: {
+                        display: false
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { 
+                        color: '#6B7280', 
+                        font: { size: 12, weight: '500' }, 
+                        padding: 12,
+                        stepSize: 1,
+                        callback: function(value) {
+                            return Number.isInteger(value) ? value : '';
+                        }
+                    },
+                    grid: { 
+                        color: 'rgba(243, 244, 246, 0.8)', 
+                        drawBorder: false,
+                        lineWidth: 1
+                    },
+                    border: {
+                        display: false
+                    }
+                }
             }
         }
     });
@@ -522,11 +676,15 @@
         })
         .then(response => response.json())
         .then(data => {
-            // Update chart data
+            // Update chart data with smooth animation
             postsChart.data.labels = data.labels;
             postsChart.data.datasets[0].data = data.lost;
             postsChart.data.datasets[1].data = data.found;
-            postsChart.update('active');
+            postsChart.update({
+                duration: 800,
+                easing: 'easeInOutQuart',
+                mode: 'active'
+            });
         })
         .catch(error => {
             console.error('Error fetching chart data:', error);
@@ -549,6 +707,23 @@
         });
     }
     
+    function updateCollectionCard(pending, overdue, averageLabel) {
+        const card = document.querySelector('[data-stat-type="collection-pending"]');
+        if (!card) {
+            return;
+        }
+
+        const overdueEl = card.querySelector('[data-stat-overdue]');
+        if (overdueEl) {
+            overdueEl.textContent = `Overdue: ${overdue}`;
+        }
+
+        const averageEl = card.querySelector('[data-stat-average]');
+        if (averageEl) {
+            averageEl.textContent = `Avg pickup ${averageLabel}`;
+        }
+    }
+
         // Event listeners for time range buttons
     document.addEventListener('DOMContentLoaded', function() {
         const btn7d = document.getElementById('timeRange7d');
@@ -615,6 +790,7 @@
             updateDashboardStats(data.stats);
             updateActivityLog(data.recentActivities);
             updatePendingActions(data.pendingClaimsList, data.itemsNearDeadline);
+            updateClaimConflicts(data.claimConflictStats);
             
             // Update last refresh time (text removed per user request - only show pulse indicator)
             if (refreshPulse) {
@@ -674,15 +850,16 @@
         // Update Pending Claims
         updateStatCard('claims', stats.pendingClaims, null, null);
         
-        // Update Successful Matches
-        updateStatCard('matches', stats.successfulMatches, null, null);
-        
         // Update Unclaimed Items
         updateStatCard('unclaimed', stats.unclaimedItems, null, null);
         
         // Update Collected This Month
         updateStatCard('collected', stats.collectedThisMonth, stats.collectedGrowthPercent, 'month');
         
+        // Update Awaiting Collection
+        updateStatCard('collection-pending', stats.collectionPending, null, null);
+        updateCollectionCard(stats.collectionPending, stats.collectionOverdue, stats.collectionAverageLabel);
+
         // Update AI Match Success Rate
         updateMatchSuccessRate(stats.matchSuccessRatePercent, stats.matchSuccessGrowthPercent);
     }
@@ -697,6 +874,7 @@
             'matches': { valueId: null },
             'unclaimed': { valueId: null },
             'collected': { valueId: null },
+            'collection-pending': { valueId: null },
         };
         
         // Find cards by data attributes and update
@@ -708,9 +886,13 @@
                 const growthEl = card.querySelector('[data-stat-growth]');
                 
                 if (valueEl) {
-                    // Animate number change
-                    const oldValue = parseInt(valueEl.textContent.replace(/,/g, '')) || 0;
-                    animateValue(valueEl, oldValue, value, 500);
+                    const numericTarget = typeof value === 'number' ? value : null;
+                    if (numericTarget !== null) {
+                        const oldValue = parseInt(valueEl.textContent.replace(/,/g, '')) || 0;
+                        animateValue(valueEl, oldValue, numericTarget, 500);
+                    } else {
+                        valueEl.textContent = value ?? '—';
+                    }
                 }
                 
                 if (growthEl && growthPercent !== null && growthPercent !== undefined) {
@@ -790,6 +972,73 @@
             }
         }
     }
+
+    function updateClaimConflicts(conflicts) {
+        const card = document.getElementById('claim-conflicts-card');
+        if (!card) {
+            return;
+        }
+
+        const totalBadge = card.querySelector('[data-conflict-total]');
+        const statusText = card.querySelector('[data-conflict-status]');
+        const emptyState = card.querySelector('[data-conflict-empty]');
+        const content = card.querySelector('[data-conflict-content]');
+        const listEl = card.querySelector('[data-conflict-list]');
+
+        const hasConflicts = conflicts && (conflicts.total ?? 0) > 0;
+
+        if (totalBadge) {
+            const totalValue = conflicts && conflicts.total ? conflicts.total : 0;
+            totalBadge.textContent = totalValue;
+        }
+
+        if (statusText) {
+            if (hasConflicts) {
+                const total = conflicts.total;
+                statusText.textContent = total === 1
+                    ? '1 item needs tie-break review'
+                    : `${total} items need tie-break review`;
+            } else {
+                statusText.textContent = 'No active conflicts';
+            }
+        }
+
+        if (emptyState) {
+            emptyState.classList.toggle('hidden', hasConflicts);
+        }
+
+        if (content) {
+            content.classList.toggle('hidden', !hasConflicts);
+        }
+
+        if (!hasConflicts) {
+            if (listEl) {
+                listEl.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Top conflict items will appear here.</p>';
+            }
+            return;
+        }
+
+        if (listEl) {
+            listEl.innerHTML = '';
+            const items = conflicts.hotlist || [];
+            if (items.length === 0) {
+                listEl.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Top conflict items will appear here.</p>';
+            } else {
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow';
+                    row.innerHTML = `
+                        <div class="min-w-0 flex-1 pr-3">
+                            <p class="text-sm font-bold text-gray-900 truncate">${escapeHtml(item.title)}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">${escapeHtml(item.category)} • ${escapeHtml(item.ageHuman)}</p>
+                        </div>
+                        <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-3 py-1.5 whitespace-nowrap flex-shrink-0">${item.totalClaims} claims</span>
+                    `;
+                    listEl.appendChild(row);
+                });
+            }
+        }
+    }
     
     function updateActivityLog(activities) {
         const activityContainer = document.getElementById('recent-activities-container');
@@ -799,26 +1048,82 @@
         activityContainer.innerHTML = '';
         
         activities.slice(0, 10).forEach(activity => {
-            const iconMap = {
-                'created': { path: 'M12 4v16m8-8H4', color: 'text-blue-500' },
-                'updated': { path: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z', color: 'text-yellow-500' },
-                'deleted': { path: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16', color: 'text-red-500' },
-            };
+            let displayText = activity.action || '';
+            let activityColor = 'blue';
+            let activityIcon = 'M8 16l2.879-2.879a3 3 0 014.242 0L18 16m-6-8a3 3 0 100-6 3 3 0 000 6z';
+            let details = {};
             
-            const icon = iconMap[activity.action.toLowerCase()] || { path: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-gray-500' };
+            try {
+                details = typeof activity.details === 'string' ? JSON.parse(activity.details) : (activity.details || {});
+            } catch (e) {
+                details = {};
+            }
             
-            const activityEl = document.createElement('div');
-            activityEl.className = 'flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors';
+            // Format action text based on action type
+            if (activity.action && activity.action.includes('found_item_status_changed')) {
+                const from = details.from || '';
+                const to = details.to || '';
+                
+                if (to === 'CLAIM_PENDING') {
+                    displayText = 'submitted a claim';
+                    activityColor = 'blue';
+                    activityIcon = 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
+                } else if (to === 'CLAIM_APPROVED') {
+                    displayText = 'approved a claim';
+                    activityColor = 'green';
+                    activityIcon = 'M5 13l4 4L19 7';
+                } else if (to === 'FOUND_UNCLAIMED' && from === 'CLAIM_PENDING') {
+                    displayText = 'rejected a claim';
+                    activityColor = 'red';
+                    activityIcon = 'M6 18L18 6M6 6l12 12';
+                } else {
+                    displayText = 'changed item status from ' + from.replace(/_/g, ' ').toLowerCase() + ' to ' + to.replace(/_/g, ' ').toLowerCase();
+                }
+            } else if (activity.action && activity.action.includes('domain_event:claim.approved')) {
+                displayText = 'approved a claim';
+                activityColor = 'green';
+                activityIcon = 'M5 13l4 4L19 7';
+            } else if (activity.action && activity.action.includes('domain_event:claim.rejected')) {
+                displayText = 'rejected a claim';
+                activityColor = 'red';
+                activityIcon = 'M6 18L18 6M6 6l12 12';
+            } else if (activity.action && activity.action.includes('domain_event:claim.submitted')) {
+                displayText = 'submitted a claim';
+                activityColor = 'blue';
+                activityIcon = 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z';
+            } else if (activity.action && activity.action.includes('claim_outcome_notification')) {
+                displayText = 'sent notification about claim outcome';
+                activityColor = 'purple';
+                activityIcon = 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9';
+            } else if (activity.action && (activity.action.toLowerCase().includes('approve') || activity.action.toLowerCase().includes('claim approved'))) {
+                activityColor = 'green';
+                activityIcon = 'M5 13l4 4L19 7';
+            } else if (activity.action && (activity.action.toLowerCase().includes('reject') || activity.action.toLowerCase().includes('claim rejected'))) {
+                activityColor = 'red';
+                activityIcon = 'M6 18L18 6M6 6l12 12';
+            } else if (activity.action && (activity.action.toLowerCase().includes('match') || activity.action.toLowerCase().includes('ai'))) {
+                activityColor = 'purple';
+                activityIcon = 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m12.728 0l-.707.707M12 21v-1m-6.657-3.343l.707-.707m12.728 0l.707.707';
+            } else if (activity.action && (activity.action.toLowerCase().includes('user') || activity.action.toLowerCase().includes('register'))) {
+                activityColor = 'yellow';
+                activityIcon = 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z';
+            }
+            
+            const activityEl = document.createElement('li');
+            activityEl.className = 'flex items-start space-x-3';
             activityEl.innerHTML = `
-                <div class="flex-shrink-0 mt-1">
-                    <svg class="w-5 h-5 ${icon.color}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${icon.path}"></path>
+                <div class="p-2 bg-${activityColor}-100 rounded-full flex-shrink-0">
+                    <svg class="w-5 h-5 text-${activityColor}-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${activityIcon}"></path>
                     </svg>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-900">${escapeHtml(activity.action)}</p>
-                    <p class="text-xs text-gray-500 mt-0.5">${escapeHtml(activity.user_name)} • ${activity.created_at_human}</p>
-                    ${activity.details ? `<p class="text-xs text-gray-600 mt-1">${escapeHtml(activity.details)}</p>` : ''}
+                    <p class="text-sm text-gray-600">
+                        <b>${escapeHtml(activity.user_name || 'System')}</b>
+                        ${escapeHtml(displayText)}
+                        ${details.found_item_id && !displayText.includes('item') ? `<span class="text-gray-500">(Item #${details.found_item_id})</span>` : ''}
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1">${escapeHtml(activity.created_at_human || '')}</p>
                 </div>
             `;
             
@@ -885,6 +1190,23 @@
         return div.innerHTML;
     }
 
+    function formatMinutesToLabel(minutes) {
+        if (minutes === null || minutes === undefined) {
+            return null;
+        }
+        const value = Number(minutes);
+        if (!Number.isFinite(value) || value < 0) {
+            return null;
+        }
+        if (value >= 1440) {
+            return `${(value / 1440).toFixed(1)}d`;
+        }
+        if (value >= 60) {
+            return `${(value / 60).toFixed(1)}h`;
+        }
+        return `${Math.round(value)}m`;
+    }
+
     // Item Status Chart
     const statusCtx = document.getElementById('itemStatusChart').getContext('2d');
     new Chart(statusCtx, {
@@ -909,9 +1231,18 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '70%',
+            cutout: '65%',
             plugins: {
-                legend: { position: 'bottom', labels: { usePointStyle: true, padding: 15 } },
+                legend: { 
+                    position: 'bottom', 
+                    labels: { 
+                        usePointStyle: true, 
+                        padding: 10,
+                        font: {
+                            size: 11
+                        }
+                    } 
+                },
                 tooltip: getChartTooltip()
             }
         }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\NotificationController as ApiNotificationController
 use App\Http\Controllers\Api\InternalController as ApiInternalController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\AIController;
+use App\Http\Controllers\Api\CategoryController as ApiCategoryController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Middleware\ApiAuthMiddleware;
 
@@ -23,6 +24,9 @@ Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/items', [ItemController::class, 'index']);
 Route::get('/items/{id}', [ItemController::class, 'show'])->whereNumber('id');
 Route::get('/ai/health', [AIController::class, 'health']);
+
+// Public category endpoint (mobile app needs this to fetch category list)
+Route::get('/categories', [ApiCategoryController::class, 'index']);
 
 // Protected routes (require Sanctum token)
 Route::middleware(['auth:sanctum', ApiAuthMiddleware::class])->group(function () {

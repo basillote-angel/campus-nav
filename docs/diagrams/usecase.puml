@@ -32,6 +32,14 @@ rectangle "Campus Nav System" as system {
     usecase "Generate Matches" as UC_generateMatches
   }
 
+  note right of UC_claimModeration
+    Status Matrix (shared enums)
+    LOST: LOST_REPORTED -> RESOLVED
+    FOUND: FOUND_UNCLAIMED -> CLAIM_PENDING -> CLAIM_APPROVED -> COLLECTED
+    CLAIM: PENDING -> APPROVED/REJECTED -> COLLECTED
+    Rejection/cancel returns item to FOUND_UNCLAIMED.
+  end note
+
   package "AR Navigation" {
     usecase "AR Navigate to Location" as UC_arNavigate
     usecase "Manage AR Locations" as UC_manageAr

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
 use App\Models\ActivityLog;
-use App\Models\LostItem;
 use App\Models\FoundItem;
+use App\Models\LostItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -28,15 +30,15 @@ class ProfileController extends Controller
         
         // Get user's items statistics by status
         $lostItemsStats = [
-            'open' => LostItem::where('user_id', $user->id)->where('status', 'open')->count(),
-            'matched' => LostItem::where('user_id', $user->id)->where('status', 'matched')->count(),
-            'closed' => LostItem::where('user_id', $user->id)->where('status', 'closed')->count(),
+            LostItemStatus::LOST_REPORTED->value => LostItem::where('user_id', $user->id)->where('status', LostItemStatus::LOST_REPORTED->value)->count(),
+            LostItemStatus::RESOLVED->value => LostItem::where('user_id', $user->id)->where('status', LostItemStatus::RESOLVED->value)->count(),
         ];
         
         $foundItemsStats = [
-            'unclaimed' => FoundItem::where('user_id', $user->id)->where('status', 'unclaimed')->count(),
-            'matched' => FoundItem::where('user_id', $user->id)->where('status', 'matched')->count(),
-            'returned' => FoundItem::where('user_id', $user->id)->where('status', 'returned')->count(),
+            FoundItemStatus::FOUND_UNCLAIMED->value => FoundItem::where('user_id', $user->id)->where('status', FoundItemStatus::FOUND_UNCLAIMED->value)->count(),
+            FoundItemStatus::CLAIM_PENDING->value => FoundItem::where('user_id', $user->id)->where('status', FoundItemStatus::CLAIM_PENDING->value)->count(),
+            FoundItemStatus::CLAIM_APPROVED->value => FoundItem::where('user_id', $user->id)->where('status', FoundItemStatus::CLAIM_APPROVED->value)->count(),
+            FoundItemStatus::COLLECTED->value => FoundItem::where('user_id', $user->id)->where('status', FoundItemStatus::COLLECTED->value)->count(),
         ];
         
         return view('profile', compact(

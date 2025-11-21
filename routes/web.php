@@ -1,19 +1,22 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\ClaimsController;
+use App\Http\Controllers\Admin\MatchQueueController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CampusMapController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ItemController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\CampusMapController;
-use App\Http\Controllers\ItemController;
-use App\Http\Controllers\CategoryController;
 use App\Http\Middleware\RoleMiddleware;
-use App\Http\Controllers\Admin\MatchQueueController;
-use App\Http\Controllers\Admin\ClaimsController;
+use App\Models\User;
 
 Route::get('/', function () {
-    return view('welcome');
+    $activeStudentCount = User::where('role', 'student')->count();
+
+    return view('welcome', compact('activeStudentCount'));
 });
 
 Route::middleware('guest')->group(function () {
@@ -34,6 +37,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/notifications', function() {
             return redirect()->route('admin.claims.index');
         })->name('notifications');
+        
+        // Real-time notification updates endpoint (for polling)
+        Route::get('/notifications/updates', [\App\Http\Controllers\NotificationController::class, 'getUpdates'])->name('notifications.updates');
     });
 
     Route::middleware([RoleMiddleware::class . ':admin,staff'])->group(function () {
@@ -75,6 +81,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/admin/claims', [ClaimsController::class, 'index'])->name('admin.claims.index');
         Route::post('/admin/claims/{id}/approve', [ClaimsController::class, 'approve'])->name('admin.claims.approve');
         Route::post('/admin/claims/{id}/reject', [ClaimsController::class, 'reject'])->name('admin.claims.reject');
+        Route::post('/admin/claims/{claim}/review-notes', [ClaimsController::class, 'updateReviewNotes'])->name('admin.claims.updateNotes');
         Route::post('/admin/claims/{id}/mark-collected', [ClaimsController::class, 'markCollected'])->name('admin.claims.markCollected');
+        Route::post('/admin/claims/{id}/cancel', [ClaimsController::class, 'cancelApproval'])->name('admin.claims.cancel');
+        Route::post('/admin/claims/{id}/send-reminder', [ClaimsController::class, 'sendReminder'])->name('admin.claims.sendReminder');
     });
 });

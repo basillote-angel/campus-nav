@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Enums\LostItemStatus;
+use App\Models\ActivityLog;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class LostItem extends Model
 {
@@ -24,6 +26,7 @@ class LostItem extends Model
 
 	protected $casts = [
 		'date_lost' => 'date',
+		'status' => LostItemStatus::class,
 	];
 
 	public function user()
@@ -39,5 +42,19 @@ class LostItem extends Model
 	public function matches()
 	{
 		return $this->hasMany(ItemMatch::class, 'lost_id');
+	}
+
+	public function transitionLogs()
+	{
+		return $this->hasMany(ActivityLog::class, 'subject_id')
+			->where('subject_type', self::class)
+			->orderBy('created_at');
+	}
+
+	public function markResolved(): self
+	{
+		$this->status = LostItemStatus::RESOLVED;
+
+		return $this;
 	}
 }

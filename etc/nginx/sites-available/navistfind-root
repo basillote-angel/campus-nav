@@ -1,0 +1,20 @@
+server {
+    listen 80;
+    server_name navistfind.org www.navistfind.org;
+    return 301 https://dashboard.navistfind.org$request_uri;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

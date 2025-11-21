@@ -62,18 +62,21 @@ class RealtimeNotifications {
 
     async checkNotifications() {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/notifications/updates`, {
+            // Use web route for session-based auth instead of API route
+            const response = await fetch('/notifications/updates', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': this.csrfToken,
                 },
-                credentials: 'include',
+                credentials: 'same-origin', // Use same-origin for session cookies
             });
 
             if (!response.ok) {
-                if (response.status === 401) {
-                    // Not authenticated, stop polling
+                if (response.status === 401 || response.status === 419) {
+                    // Not authenticated or CSRF token expired, stop polling
+                    console.warn('Authentication failed. Stopping notification polling.');
                     this.stopPolling();
                     return;
                 }
@@ -90,17 +93,29 @@ class RealtimeNotifications {
 
     handleNotificationUpdate(data) {
         const newUnreadCount = data.unread_count || 0;
+        const pendingClaimsCount = data.pending_claims_count || 0;
         const recentNotifications = data.recent_notifications || [];
+        const previousCount = this.unreadCount;
 
-        // Update badge if count changed
+        // Update Claims badge with pending claims count (not notification count)
+        // The badge on Claims menu should show pending claims, not notifications
+        if (pendingClaimsCount !== undefined) {
+            this.updateBadge(pendingClaimsCount);
+        }
+
+        // Update notification count for page title
         if (newUnreadCount !== this.unreadCount) {
-            this.updateBadge(newUnreadCount);
-            this.unreadCount = newUnreadCount;
-
-            // Show browser notification for new notifications
-            if (newUnreadCount > this.unreadCount && recentNotifications.length > 0) {
-                this.showBrowserNotification(recentNotifications[0]);
+            // Show browser notification for new notifications (only if count increased)
+            if (newUnreadCount > previousCount && recentNotifications.length > 0) {
+                // Get the most recent notification that's actually new
+                const newestNotification = recentNotifications[0];
+                this.showBrowserNotification(newestNotification);
             }
+            
+            this.unreadCount = newUnreadCount;
+            
+            // Update page title with notification count
+            this.updatePageTitle(newUnreadCount);
         }
 
         // Update notification dropdown if it exists
@@ -110,19 +125,28 @@ class RealtimeNotifications {
     }
 
     updateBadge(count) {
-        // Update notification badge in sidebar/navbar
+        // Update Claims badge in sidebar (shows pending claims count)
         const badgeElements = document.querySelectorAll('.notification-badge, [data-notification-badge]');
         badgeElements.forEach(badge => {
             if (count > 0) {
                 badge.textContent = count > 99 ? '99+' : count;
                 badge.classList.remove('hidden');
-                badge.classList.add('animate-pulse');
+                badge.setAttribute('data-pending-claims-count', count);
+                // Only add pulse animation if count is high (urgent)
+                if (count >= 5) {
+                    badge.classList.add('animate-pulse');
+                } else {
+                    badge.classList.remove('animate-pulse');
+                }
             } else {
                 badge.classList.add('hidden');
                 badge.classList.remove('animate-pulse');
+                badge.setAttribute('data-pending-claims-count', '0');
             }
         });
+    }
 
+    updatePageTitle(count) {
         // Update page title if there are unread notifications
         if (count > 0) {
             const originalTitle = document.title.replace(/^\(\d+\)\s*/, '');
@@ -234,21 +258,8 @@ class RealtimeNotifications {
         return div.innerHTML;
     }
 
-    getAuthToken() {
-        // Try to get token from localStorage or cookie
-        // This depends on how your auth is set up
-        const token = localStorage.getItem('auth_token') || 
-                     this.getCookie('auth_token') ||
-                     this.getCookie('sanctum_token');
-        return token;
-    }
-
-    getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-        return null;
-    }
+    // Removed getAuthToken() - using session-based auth instead
+    // Session cookies are automatically sent with same-origin requests
 
     // Public method to manually refresh
     refresh() {

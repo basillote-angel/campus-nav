@@ -54,6 +54,10 @@ return [
         'contact_email' => env('ADMIN_OFFICE_EMAIL', 'admin@school.edu'),
         'contact_phone' => env('ADMIN_OFFICE_PHONE', '(555) 123-4567'),
         'collection_deadline_days' => (int) env('COLLECTION_DEADLINE_DAYS', 7),
-        'auto_revert_days' => (int) env('COLLECTION_AUTO_REVERT_DAYS', 14),
+		'collection_first_reminder_hours' => (int) env('COLLECTION_FIRST_REMINDER_HOURS', 72),
+		'collection_second_reminder_hours' => (int) env('COLLECTION_SECOND_REMINDER_HOURS', 24),
+		'collection_reminder_cooldown_hours' => (int) env('COLLECTION_REMINDER_COOLDOWN_HOURS', 12),
+		'collection_grace_hours' => (int) env('COLLECTION_GRACE_HOURS', 72),
+		'auto_revert_days' => (int) env('COLLECTION_AUTO_REVERT_DAYS', 14),
     ],
 ];

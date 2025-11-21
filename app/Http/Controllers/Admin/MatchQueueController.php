@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
 use App\Http\Controllers\Controller;
+use App\Jobs\ComputeItemMatches;
 use App\Models\FoundItem;
+use App\Models\ItemMatch;
 use App\Models\LostItem;
 use App\Services\AIService;
-use App\Models\ItemMatch;
-use App\Jobs\ComputeItemMatches;
 use Illuminate\Http\Request;
 
 class MatchQueueController extends Controller
@@ -38,7 +40,7 @@ class MatchQueueController extends Controller
         $days = (int) $request->query('days', 14);
 
         // Enqueue jobs for recent found items
-        $recentFound = FoundItem::where('status', 'unclaimed')
+        $recentFound = FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)
             ->where('created_at', '>=', now()->subDays($days))
             ->latest('created_at')
             ->limit(200)
@@ -49,7 +51,7 @@ class MatchQueueController extends Controller
         }
 
         // Also enqueue for recent lost items
-        $recentLost = LostItem::where('status', 'open')
+        $recentLost = LostItem::where('status', LostItemStatus::LOST_REPORTED->value)
             ->where('created_at', '>=', now()->subDays($days))
             ->latest('created_at')
             ->limit(200)

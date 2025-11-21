@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LostItem;
-use App\Models\FoundItem;
+use App\Enums\FoundItemStatus;
+use App\Enums\LostItemStatus;
+use App\Jobs\ComputeItemMatches;
 use App\Models\Category;
+use App\Models\FoundItem;
+use App\Models\LostItem;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use App\Jobs\ComputeItemMatches;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ItemController extends Controller
 {
@@ -38,13 +41,19 @@ class ItemController extends Controller
         if (!in_array($sortDirection, $allowedDirections)) {
             $sortDirection = 'desc';
         }
+
+        $lostStatusValues = LostItemStatus::values();
+        $foundStatusValues = FoundItemStatus::values();
         
         if ($type === 'lost') {
             $query = LostItem::query();
 
             if ($request->filled('status')) {
                 $statuses = is_array($request->status) ? $request->status : [$request->status];
-                $query->whereIn('status', $statuses);
+                $filteredStatuses = array_intersect($statuses, $lostStatusValues);
+                if (!empty($filteredStatuses)) {
+                    $query->whereIn('status', $filteredStatuses);
+                }
             }
             
             if ($request->filled('category')) {
@@ -121,7 +130,10 @@ class ItemController extends Controller
 
             if ($request->filled('status')) {
                 $statuses = is_array($request->status) ? $request->status : [$request->status];
-                $query->whereIn('status', $statuses);
+                $filteredStatuses = array_intersect($statuses, $foundStatusValues);
+                if (!empty($filteredStatuses)) {
+                    $query->whereIn('status', $filteredStatuses);
+                }
             }
             
             if ($request->filled('category')) {
@@ -275,8 +287,8 @@ class ItemController extends Controller
 
             if ($request->filled('status')) {
                 $statuses = is_array($request->status) ? $request->status : [$request->status];
-                $lostStatuses = array_intersect($statuses, ['open', 'matched', 'closed']);
-                $foundStatuses = array_intersect($statuses, ['unclaimed', 'matched', 'returned']);
+                $lostStatuses = array_intersect($statuses, $lostStatusValues);
+                $foundStatuses = array_intersect($statuses, $foundStatusValues);
                 
                 if (!empty($lostStatuses)) {
                     $lost->whereIn('lost_items.status', $lostStatuses);
@@ -412,18 +424,16 @@ class ItemController extends Controller
     {
         // Determine item type first to validate status correctly
         $originalType = $request->input('originalType', $request->type);
-        
-        // Validate status based on item type
-        $statusValidation = $originalType === 'lost' 
-            ? 'nullable|in:open,matched,closed'
-            : 'nullable|in:unclaimed,matched,returned';
+        $lostStatusValues = LostItemStatus::values();
+        $foundStatusValues = FoundItemStatus::values();
+        $statusSet = $originalType === 'lost' ? $lostStatusValues : $foundStatusValues;
 
         $request->validate([
             'title' => 'required|string',
             'category_id' => 'nullable|integer|exists:categories,id',
             'description' => 'required|string',
             'type' => 'required|in:lost,found',
-            'status' => $statusValidation,
+            'status' => ['nullable', Rule::in($statusSet)],
             'location' => 'nullable|string',
             'date' => 'nullable|date',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
@@ -432,10 +442,14 @@ class ItemController extends Controller
         $model = $originalType === 'lost' ? (LostItem::findOrFail($id)) : (FoundItem::findOrFail($id));
         $payload = [
             'title' => $request->title,
-            'category_id' => $request->category_id,
             'description' => $request->description,
             'location' => $request->location,
         ];
+        
+        // Only update category_id if provided and not null
+        if ($request->filled('category_id')) {
+            $payload['category_id'] = (int) $request->category_id;
+        }
         
         // Add status if provided
         if ($request->filled('status')) {
@@ -516,6 +530,7 @@ class ItemController extends Controller
             'type' => 'required|in:lost,found',
             'description' => 'required|string',
             'location' => 'nullable|string',
+            'category_id' => 'nullable|integer|exists:categories,id',
         ]);
 
         $title = $request->input('title') ?? $request->input('name');
@@ -525,8 +540,12 @@ class ItemController extends Controller
         $categoryId = $request->input('category_id');
         if (!$categoryId && $request->filled('category')) {
             $catName = $request->input('category');
-            $cat = Category::where('name', $catName)->first();
+            $cat = Category::whereRaw('LOWER(name) = ?', [strtolower($catName)])->first();
             if ($cat) { $categoryId = $cat->id; }
+        }
+
+        if (!$categoryId) {
+            return response()->json(['success' => false, 'message' => 'Category is required.'], 422);
         }
 
         if (!$title) {
@@ -543,7 +562,7 @@ class ItemController extends Controller
                 'description' => $request->description,
                 'location' => $request->location,
                 'date_lost' => $date,
-                'status' => 'open',
+                'status' => LostItemStatus::LOST_REPORTED->value,
             ]);
         } else {
             $created = FoundItem::create([
@@ -553,7 +572,7 @@ class ItemController extends Controller
                 'description' => $request->description,
                 'location' => $request->location,
                 'date_found' => $date,
-                'status' => 'unclaimed',
+                'status' => FoundItemStatus::FOUND_UNCLAIMED->value,
             ]);
         }
 
@@ -580,39 +599,67 @@ class ItemController extends Controller
         $search = $request->query('search', '');
         $ids = $request->query('ids', ''); // For bulk export
 
+        $lostStatusValues = LostItemStatus::values();
+        $foundStatusValues = FoundItemStatus::values();
+
         // Handle bulk export (specific IDs)
         if ($ids) {
             $idArray = explode(',', $ids);
-            $lostItems = LostItem::whereIn('id', $idArray)->with(['category', 'user'])->get();
-            $foundItems = FoundItem::whereIn('id', $idArray)->with(['category', 'user'])->get();
+            $lostItems = LostItem::whereIn('id', $idArray)->with(['category', 'user', 'matches'])->get();
+            $foundItems = FoundItem::whereIn('id', $idArray)->with(['category', 'user', 'matches', 'claimedBy', 'approvedBy', 'collectedBy', 'claims'])->get();
             
             $items = collect();
             foreach ($lostItems as $i) {
                 $items->push([
                     'id' => $i->id,
                     'name' => $i->title,
+                    'title' => $i->title,
                     'description' => $i->description,
                     'location' => $i->location,
-                    'status' => $i->status,
+                    'status' => $i->status->value ?? $i->status,
                     'type' => 'lost',
                     'date' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
+                    'date_lost' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
                     'category' => optional($i->category)->name,
+                    'category_id' => $i->category_id,
                     'posted_by' => optional($i->user)->name,
+                    'user_name' => optional($i->user)->name,
+                    'user_email' => optional($i->user)->email ?? '',
+                    'posted_by_email' => optional($i->user)->email ?? '',
+                    'match_count' => $i->matches()->count(),
+                    'best_match_score' => $i->matches()->max('similarity_score'),
                     'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                    'updated_at' => $i->updated_at->format('Y-m-d H:i:s'),
                 ]);
             }
             foreach ($foundItems as $i) {
                 $items->push([
                     'id' => $i->id,
                     'name' => $i->title,
+                    'title' => $i->title,
                     'description' => $i->description,
                     'location' => $i->location,
-                    'status' => $i->status,
+                    'status' => $i->status->value ?? $i->status,
                     'type' => 'found',
                     'date' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
+                    'date_found' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
                     'category' => optional($i->category)->name,
+                    'category_id' => $i->category_id,
                     'posted_by' => optional($i->user)->name,
+                    'user_name' => optional($i->user)->name,
+                    'user_email' => optional($i->user)->email ?? '',
+                    'posted_by_email' => optional($i->user)->email ?? '',
+                    'claim_status' => $i->status->value ?? $i->status,
+                    'claimed_by' => optional($i->claimedBy)->name,
+                    'claimed_at' => $i->claimed_at ? $i->claimed_at->format('Y-m-d H:i:s') : null,
+                    'approved_by' => optional($i->approvedBy)->name,
+                    'approved_at' => $i->approved_at ? $i->approved_at->format('Y-m-d H:i:s') : null,
+                    'collection_deadline' => $i->collection_deadline ? $i->collection_deadline->format('Y-m-d H:i:s') : null,
+                    'collected_at' => $i->collected_at ? $i->collected_at->format('Y-m-d H:i:s') : null,
+                    'collection_notes' => $i->collection_notes,
+                    'match_count' => $i->matches()->count(),
                     'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                    'updated_at' => $i->updated_at->format('Y-m-d H:i:s'),
                 ]);
             }
             $items = $items->sortByDesc('created_at')->values();
@@ -620,7 +667,9 @@ class ItemController extends Controller
         // Build query similar to index method
         else if ($type === 'lost') {
             $query = LostItem::query();
-            if ($status) $query->where('status', $status);
+            if ($status && in_array($status, $lostStatusValues, true)) {
+                $query->where('status', $status);
+            }
             if ($category) $query->where('category_id', $category);
             if ($search) {
                 $kw = '%' . $search . '%';
@@ -632,25 +681,36 @@ class ItemController extends Controller
             }
             // Process in chunks to avoid memory issues with large datasets
             $items = collect();
-            $query->with(['category', 'user'])->latest('created_at')->chunk(500, function ($chunk) use (&$items) {
+            $query->with(['category', 'user', 'matches'])->latest('created_at')->chunk(500, function ($chunk) use (&$items) {
                 $chunk->each(function ($i) use (&$items) {
                     $items->push([
                         'id' => $i->id,
                         'name' => $i->title,
+                        'title' => $i->title,
                         'description' => $i->description,
                         'location' => $i->location,
-                        'status' => $i->status,
+                        'status' => $i->status->value ?? $i->status,
                         'type' => 'lost',
                         'date' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
+                        'date_lost' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
                         'category' => optional($i->category)->name,
+                        'category_id' => $i->category_id,
                         'posted_by' => optional($i->user)->name,
+                        'user_name' => optional($i->user)->name,
+                        'user_email' => optional($i->user)->email ?? '',
+                        'posted_by_email' => optional($i->user)->email ?? '',
+                        'match_count' => $i->matches()->count(),
+                        'best_match_score' => $i->matches()->max('similarity_score'),
                         'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $i->updated_at->format('Y-m-d H:i:s'),
                     ]);
                 });
             });
         } else if ($type === 'found') {
             $query = FoundItem::query();
-            if ($status) $query->where('status', $status);
+            if ($status && in_array($status, $foundStatusValues, true)) {
+                $query->where('status', $status);
+            }
             if ($category) $query->where('category_id', $category);
             if ($search) {
                 $kw = '%' . $search . '%';
@@ -662,19 +722,35 @@ class ItemController extends Controller
             }
             // Process in chunks to avoid memory issues with large datasets
             $items = collect();
-            $query->with(['category', 'user'])->latest('created_at')->chunk(500, function ($chunk) use (&$items) {
+            $query->with(['category', 'user', 'matches', 'claimedBy', 'approvedBy', 'collectedBy', 'claims'])->latest('created_at')->chunk(500, function ($chunk) use (&$items) {
                 $chunk->each(function ($i) use (&$items) {
                     $items->push([
                         'id' => $i->id,
                         'name' => $i->title,
+                        'title' => $i->title,
                         'description' => $i->description,
                         'location' => $i->location,
-                        'status' => $i->status,
+                        'status' => $i->status->value ?? $i->status,
                         'type' => 'found',
                         'date' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
+                        'date_found' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
                         'category' => optional($i->category)->name,
+                        'category_id' => $i->category_id,
                         'posted_by' => optional($i->user)->name,
+                        'user_name' => optional($i->user)->name,
+                        'user_email' => optional($i->user)->email ?? '',
+                        'posted_by_email' => optional($i->user)->email ?? '',
+                        'claim_status' => $i->status->value ?? $i->status,
+                        'claimed_by' => optional($i->claimedBy)->name,
+                        'claimed_at' => $i->claimed_at ? $i->claimed_at->format('Y-m-d H:i:s') : null,
+                        'approved_by' => optional($i->approvedBy)->name,
+                        'approved_at' => $i->approved_at ? $i->approved_at->format('Y-m-d H:i:s') : null,
+                        'collection_deadline' => $i->collection_deadline ? $i->collection_deadline->format('Y-m-d H:i:s') : null,
+                        'collected_at' => $i->collected_at ? $i->collected_at->format('Y-m-d H:i:s') : null,
+                        'collection_notes' => $i->collection_notes,
+                        'match_count' => $i->matches()->count(),
                         'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $i->updated_at->format('Y-m-d H:i:s'),
                     ]);
                 });
             });
@@ -684,10 +760,10 @@ class ItemController extends Controller
             $foundQuery = FoundItem::query();
             
             if ($status) {
-                if (in_array($status, ['open', 'matched', 'closed'])) {
+                if (in_array($status, $lostStatusValues, true)) {
                     $lostQuery->where('status', $status);
                 }
-                if (in_array($status, ['unclaimed', 'matched', 'returned'])) {
+                if (in_array($status, $foundStatusValues, true)) {
                     $foundQuery->where('status', $status);
                 }
             }
@@ -711,37 +787,62 @@ class ItemController extends Controller
             
             // Process in chunks to avoid memory issues with large datasets
             $lostItems = collect();
-            $lostQuery->with(['category', 'user'])->chunk(500, function ($chunk) use (&$lostItems) {
+            $lostQuery->with(['category', 'user', 'matches'])->chunk(500, function ($chunk) use (&$lostItems) {
                 $chunk->each(function ($i) use (&$lostItems) {
                     $lostItems->push([
                         'id' => $i->id,
                         'name' => $i->title,
+                        'title' => $i->title,
                         'description' => $i->description,
                         'location' => $i->location,
-                        'status' => $i->status,
+                        'status' => $i->status->value ?? $i->status,
                         'type' => 'lost',
                         'date' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
+                        'date_lost' => $i->date_lost ? $i->date_lost->format('Y-m-d') : '',
                         'category' => optional($i->category)->name,
+                        'category_id' => $i->category_id,
                         'posted_by' => optional($i->user)->name,
+                        'user_name' => optional($i->user)->name,
+                        'user_email' => optional($i->user)->email ?? '',
+                        'posted_by_email' => optional($i->user)->email ?? '',
+                        'match_count' => $i->matches()->count(),
+                        'best_match_score' => $i->matches()->max('similarity_score'),
                         'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $i->updated_at->format('Y-m-d H:i:s'),
                     ]);
                 });
             });
             
             $foundItems = collect();
-            $foundQuery->with(['category', 'user'])->chunk(500, function ($chunk) use (&$foundItems) {
+            $foundQuery->with(['category', 'user', 'matches', 'claimedBy', 'approvedBy', 'collectedBy', 'claims'])->chunk(500, function ($chunk) use (&$foundItems) {
                 $chunk->each(function ($i) use (&$foundItems) {
                     $foundItems->push([
                         'id' => $i->id,
                         'name' => $i->title,
+                        'title' => $i->title,
                         'description' => $i->description,
                         'location' => $i->location,
-                        'status' => $i->status,
+                        'status' => $i->status->value ?? $i->status,
                         'type' => 'found',
                         'date' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
+                        'date_found' => $i->date_found ? $i->date_found->format('Y-m-d') : '',
                         'category' => optional($i->category)->name,
+                        'category_id' => $i->category_id,
                         'posted_by' => optional($i->user)->name,
+                        'user_name' => optional($i->user)->name,
+                        'user_email' => optional($i->user)->email ?? '',
+                        'posted_by_email' => optional($i->user)->email ?? '',
+                        'claim_status' => $i->status->value ?? $i->status,
+                        'claimed_by' => optional($i->claimedBy)->name,
+                        'claimed_at' => $i->claimed_at ? $i->claimed_at->format('Y-m-d H:i:s') : null,
+                        'approved_by' => optional($i->approvedBy)->name,
+                        'approved_at' => $i->approved_at ? $i->approved_at->format('Y-m-d H:i:s') : null,
+                        'collection_deadline' => $i->collection_deadline ? $i->collection_deadline->format('Y-m-d H:i:s') : null,
+                        'collected_at' => $i->collected_at ? $i->collected_at->format('Y-m-d H:i:s') : null,
+                        'collection_notes' => $i->collection_notes,
+                        'match_count' => $i->matches()->count(),
                         'created_at' => $i->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $i->updated_at->format('Y-m-d H:i:s'),
                     ]);
                 });
             });
@@ -751,11 +852,10 @@ class ItemController extends Controller
 
         if ($format === 'csv') {
             return $this->exportItemsCsv($items, $ids ? 'selected' : $type, $status, $category);
-        } elseif ($format === 'pdf') {
-            return $this->exportItemsPdf($items, $ids ? 'selected' : $type, $status, $category);
         }
 
-        return redirect()->route('item')->with('error', 'Invalid export format');
+        // Only CSV export is supported
+        return redirect()->route('item')->with('error', 'Invalid export format. Only CSV export is available.');
     }
 
     /**
@@ -788,23 +888,78 @@ class ItemController extends Controller
             fputcsv($file, ['Total Records', $items->count()]);
             fputcsv($file, []); // Empty row
             
-            // Column headers
-            fputcsv($file, ['ID', 'Item Name', 'Type', 'Category', 'Description', 'Location', 'Status', 'Date Lost/Found', 'Posted By', 'Created At']);
+            // Column headers - Enhanced with more fields
+            // Determine if we have both types
+            $hasLost = $items->contains('type', 'lost');
+            $hasFound = $items->contains('type', 'found');
             
-            // Data rows
+            $headers = ['ID', 'Item Name', 'Type', 'Category', 'Description', 'Location', 'Status', 'Date Lost/Found', 'Posted By', 'Posted By Email'];
+            
+            // Add type-specific headers - always add all columns if both types exist
+            if ($hasLost) {
+                $headers = array_merge($headers, ['Match Count', 'Best Match Score']);
+            }
+            if ($hasFound) {
+                $headers = array_merge($headers, ['Claim Status', 'Claimed By', 'Claimed At', 'Approved By', 'Approved At', 'Collection Deadline', 'Collected At', 'Collection Notes', 'Match Count']);
+            }
+            
+            $headers = array_merge($headers, ['Created At', 'Updated At']);
+            fputcsv($file, $headers);
+            
+            // Data rows - ensure all rows have same number of columns
             foreach ($items as $item) {
-                fputcsv($file, [
+                $row = [
                     $item['id'],
-                    $item['name'],
-                    ucfirst($item['type']),
+                    $item['name'] ?? '',
+                    ucfirst($item['type'] ?? ''),
                     $item['category'] ?? 'N/A',
                     $item['description'] ?? '',
                     $item['location'] ?? '',
-                    ucfirst($item['status']),
+                    ucfirst($item['status'] ?? ''),
                     $item['date'] ?? '',
-                    $item['posted_by'] ?? 'System',
-                    $item['created_at'],
-                ]);
+                    $item['posted_by'] ?? $item['user_name'] ?? 'System',
+                    $item['posted_by_email'] ?? $item['user_email'] ?? '',
+                ];
+                
+                // Add type-specific data - ensure columns align properly
+                if (($item['type'] ?? '') === 'lost') {
+                    // Lost item columns
+                    $row[] = $item['match_count'] ?? 0;
+                    $row[] = isset($item['best_match_score']) && $item['best_match_score'] !== null ? number_format($item['best_match_score'], 2) : 'N/A';
+                    // Add empty columns for found item fields if both types exist
+                    if ($hasFound) {
+                        $row[] = ''; // Claim Status
+                        $row[] = ''; // Claimed By
+                        $row[] = ''; // Claimed At
+                        $row[] = ''; // Approved By
+                        $row[] = ''; // Approved At
+                        $row[] = ''; // Collection Deadline
+                        $row[] = ''; // Collected At
+                        $row[] = ''; // Collection Notes
+                        $row[] = ''; // Match Count (for found)
+                    }
+                } elseif (($item['type'] ?? '') === 'found') {
+                    // Add empty columns for lost item fields if both types exist
+                    if ($hasLost) {
+                        $row[] = ''; // Match Count (for lost)
+                        $row[] = ''; // Best Match Score
+                    }
+                    // Found item columns
+                    $row[] = $item['claim_status'] ?? $item['status'] ?? '';
+                    $row[] = $item['claimed_by'] ?? 'N/A';
+                    $row[] = $item['claimed_at'] ?? 'N/A';
+                    $row[] = $item['approved_by'] ?? 'N/A';
+                    $row[] = $item['approved_at'] ?? 'N/A';
+                    $row[] = $item['collection_deadline'] ?? 'N/A';
+                    $row[] = $item['collected_at'] ?? 'N/A';
+                    $row[] = $item['collection_notes'] ?? 'N/A';
+                    $row[] = $item['match_count'] ?? 0;
+                }
+                
+                $row[] = $item['created_at'] ?? '';
+                $row[] = $item['updated_at'] ?? '';
+                
+                fputcsv($file, $row);
             }
             
             fclose($file);
@@ -813,15 +968,6 @@ class ItemController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    /**
-     * Export items as PDF (placeholder - returns message for now)
-     */
-    private function exportItemsPdf($items, $type, $status, $category)
-    {
-        // PDF export would require a library like dompdf or mpdf
-        // For now, return a message indicating it's coming soon
-        return redirect()->route('item')->with('info', 'PDF export feature is coming soon. Please use CSV export for now.');
-    }
 
     /**
      * Bulk update items (status, category, etc.)
@@ -840,6 +986,8 @@ class ItemController extends Controller
         $action = $request->input('action');
         $value = $request->input('value');
         $updated = 0;
+        $lostStatusValues = LostItemStatus::values();
+        $foundStatusValues = FoundItemStatus::values();
 
         foreach ($items as $itemData) {
             $id = $itemData['id'];
@@ -849,7 +997,7 @@ class ItemController extends Controller
                 $model = LostItem::find($id);
                 if (!$model) continue;
                 
-                if ($action === 'status' && in_array($value, ['open', 'matched', 'closed'])) {
+                if ($action === 'status' && in_array($value, $lostStatusValues, true)) {
                     $model->status = $value;
                     $model->save();
                     $updated++;
@@ -862,7 +1010,7 @@ class ItemController extends Controller
                 $model = FoundItem::find($id);
                 if (!$model) continue;
                 
-                if ($action === 'status' && in_array($value, ['unclaimed', 'matched', 'returned'])) {
+                if ($action === 'status' && in_array($value, $foundStatusValues, true)) {
                     $model->status = $value;
                     $model->save();
                     $updated++;

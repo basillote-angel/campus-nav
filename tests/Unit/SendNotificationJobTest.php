@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Jobs\SendNotificationJob;
 use App\Models\User;
 use App\Models\DeviceToken;
+use App\Services\DomainEventService;
 use App\Services\FcmService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -32,7 +33,7 @@ class SendNotificationJobTest extends TestCase
         $this->app->instance(FcmService::class, $fake);
 
         $job = new SendNotificationJob($user->id, 'T', 'B', 'system_alert');
-        $job->handle(app(FcmService::class));
+        $job->handle(app(FcmService::class), app(DomainEventService::class));
 
         $this->assertDatabaseHas('notifications', [
             'user_id' => $user->id,

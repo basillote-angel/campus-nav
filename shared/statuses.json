@@ -1,0 +1,51 @@
+{
+  "lostItemStatuses": [
+    {
+      "code": "LOST_REPORTED",
+      "description": "Student submitted a lost report and is waiting for matches."
+    },
+    {
+      "code": "RESOLVED",
+      "description": "Lost case resolved after item is collected or claim closed."
+    }
+  ],
+  "foundItemStatuses": [
+    {
+      "code": "FOUND_UNCLAIMED",
+      "description": "Admin listed a found item and no pending claims exist."
+    },
+    {
+      "code": "CLAIM_PENDING",
+      "description": "At least one student submitted a claim awaiting review."
+    },
+    {
+      "code": "CLAIM_APPROVED",
+      "description": "Admin approved a claim; waiting for physical collection."
+    },
+    {
+      "code": "COLLECTED",
+      "description": "Item handed to claimant and archived for analytics."
+    }
+  ],
+  "claimStatuses": [
+    {
+      "code": "PENDING",
+      "description": "Claim awaiting admin review."
+    },
+    {
+      "code": "APPROVED",
+      "description": "Claim accepted; claimant notified."
+    },
+    {
+      "code": "REJECTED",
+      "description": "Claim denied; claimant notified."
+    },
+    {
+      "code": "WITHDRAWN",
+      "description": "Claimant cancelled the request."
+    }
+  ]
+}
+
+
+

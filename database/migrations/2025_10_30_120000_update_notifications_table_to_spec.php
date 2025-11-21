@@ -7,20 +7,46 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    private function hasIndex(string $tableName, string $indexName): bool
-    {
-        $dbName = DB::getDatabaseName();
-        $result = DB::select(
-            "SELECT COUNT(*) as count FROM information_schema.statistics 
+	private function hasIndex(string $tableName, string $indexName): bool
+	{
+		$driver = Schema::getConnection()->getDriverName();
+
+		if ($driver === 'sqlite') {
+			$result = DB::select("PRAGMA index_list('{$tableName}')");
+			foreach ($result as $row) {
+				$name = $row->name ?? $row->Name ?? null;
+				if ($name === $indexName) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		if ($driver === 'pgsql') {
+			// PostgreSQL uses pg_indexes to check for indexes
+			$result = DB::select(
+				"SELECT COUNT(*) as count FROM pg_indexes 
+                 WHERE schemaname = 'public' AND tablename = ? AND indexname = ?",
+				[$tableName, $indexName]
+			);
+			return isset($result[0]) && $result[0]->count > 0;
+		}
+
+		// MySQL
+		$dbName = DB::getDatabaseName();
+		$result = DB::select(
+			"SELECT COUNT(*) as count FROM information_schema.statistics 
              WHERE table_schema = ? AND table_name = ? AND index_name = ?",
-            [$dbName, $tableName, $indexName]
-        );
-        return $result[0]->count > 0;
-    }
+			[$dbName, $tableName, $indexName]
+		);
+		return isset($result[0]) && $result[0]->count > 0;
+	}
 
     public function up(): void
     {
-        Schema::table('notifications', function (Blueprint $table) {
+        $driver = Schema::getConnection()->getDriverName();
+
+        Schema::table('notifications', function (Blueprint $table) use ($driver) {
             // Convert enum type to string
             $table->string('type')->default('system_alert')->change();
 
@@ -42,7 +68,9 @@ return new class extends Migration
 
             // Drop old boolean is_read if exists
             if (Schema::hasColumn('notifications', 'is_read')) {
-                $table->dropColumn('is_read');
+                if ($driver !== 'sqlite') {
+                    $table->dropColumn('is_read');
+                }
             }
         });
 
