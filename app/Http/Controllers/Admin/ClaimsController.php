@@ -236,6 +236,7 @@ class ClaimsController extends Controller
             $officeHours = config('services.admin_office.office_hours', 'Monday-Friday, 8:00 AM - 5:00 PM');
             $contactEmail = config('services.admin_office.contact_email', 'admin@school.edu');
             $contactPhone = config('services.admin_office.contact_phone', '(555) 123-4567');
+            $contactInfo = "Email: {$contactEmail} | Phone: {$contactPhone}";
 
 			if ($winningClaim && $winningClaim->claimant_id) {
 				// Generate formal pickup instructions using PickupInstructionHelper
@@ -245,7 +246,7 @@ class ClaimsController extends Controller
 					'collection_deadline' => $collectionDeadline,
 					'collection_instructions' => $item->collection_instructions ?? null,
 					'office_hours' => $officeHours,
-					'contact_info' => "Email: {$contactEmail} | Phone: {$contactPhone}",
+					'contact_info' => $contactInfo,
 					'claimant_name' => $winningClaim->claimant?->name ?? null,
 				];
 
