@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Enums\ClaimStatus;
 use App\Enums\FoundItemStatus;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class FoundItemResource extends JsonResource
 {
@@ -24,6 +25,16 @@ class FoundItemResource extends JsonResource
 			'location' => $this->location,
 			'date_found' => optional($this->date_found)->toDateString(),
 			'image_path' => $this->image_path,
+			'claimant_contact' => [
+				'name' => $this->claimant_contact_name,
+				'info' => $this->claimant_contact_info,
+				'email' => $this->claimant_email,
+				'phone' => $this->claimant_phone,
+				'image' => [
+					'path' => $this->claim_image,
+					'url' => $this->claim_image ? Storage::disk('public')->url($this->claim_image) : null,
+				],
+			],
 			'collection_deadline' => optional($this->collection_deadline)->toIso8601String(),
 			'collection_notes' => $this->collection_notes,
 			'claim_status_summary' => $this->claimStatusSummary(),

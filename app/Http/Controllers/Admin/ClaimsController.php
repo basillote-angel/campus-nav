@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class ClaimsController extends Controller
 {
@@ -125,11 +126,9 @@ class ClaimsController extends Controller
         $itemsWithMultipleClaims = [];
 
         foreach ($pending as $pendingItem) {
-            $claims = ClaimedItem::with(['claimant', 'matchedLostItem', 'approvedBy', 'rejectedBy'])
-                ->where('found_item_id', $pendingItem->id)
-                ->where('status', ClaimStatus::PENDING->value)
-                ->orderBy('created_at')
-                ->get();
+            $claims = $pendingItem->pendingClaims
+                ->sortBy('created_at')
+                ->values();
 
             if ($claims->isNotEmpty()) {
                 $pendingClaimsByItem[$pendingItem->id] = $claims->map(function (ClaimedItem $pendingClaim) use ($pendingItem) {
@@ -141,19 +140,23 @@ class ClaimsController extends Controller
                         }
                     }
 
-                    return [
-                        'id' => $pendingClaim->id,
-                        'claimantName' => optional($pendingClaim->claimant)->name ?? 'Unknown',
-                        'claimantEmail' => optional($pendingClaim->claimant)->email,
-                        'message' => $pendingClaim->message,
-                        'contactName' => $pendingClaim->claimant_contact_name,
-                        'contactInfo' => $pendingClaim->claimant_contact_info,
-                        'status' => $pendingClaim->status,
-                        'createdAt' => optional($pendingClaim->created_at)->toDateTimeString(),
-                        'similarity' => $similarity,
-                        'reviewNotes' => $pendingClaim->review_notes,
-                        'updateNotesUrl' => route('admin.claims.updateNotes', $pendingClaim->id),
-                    ];
+					return [
+						'id' => $pendingClaim->id,
+						'claimantName' => optional($pendingClaim->claimant)->name ?? 'Unknown',
+						'claimantEmail' => optional($pendingClaim->claimant)->email,
+						'message' => $pendingClaim->message,
+						'contactName' => $pendingClaim->claimant_contact_name,
+						'contactInfo' => $pendingClaim->claimant_contact_info,
+						'contactEmail' => $pendingClaim->claimant_email,
+						'contactPhone' => $pendingClaim->claimant_phone,
+						'imagePath' => $pendingClaim->claim_image,
+						'imageUrl' => $pendingClaim->claim_image ? Storage::disk('public')->url($pendingClaim->claim_image) : null,
+						'status' => $pendingClaim->status,
+						'createdAt' => optional($pendingClaim->created_at)->toDateTimeString(),
+						'similarity' => $similarity,
+						'reviewNotes' => $pendingClaim->review_notes,
+						'updateNotesUrl' => route('admin.claims.updateNotes', $pendingClaim->id),
+					];
                 });
             }
 

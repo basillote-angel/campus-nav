@@ -43,7 +43,20 @@ class DashboardController extends Controller
 
     public function index()
     {
+        $stats = $this->buildDashboardStats();
+
+        return view('dashboard', $stats);
+    }
+
+    protected function buildDashboardStats(bool $useCache = true): array
+    {
         $ttl = now()->addSeconds((int) env('DASHBOARD_CACHE_TTL', 30));
+        $remember = function (string $key, \Closure $callback) use ($useCache, $ttl) {
+            return $useCache
+                ? Cache::remember($key, $ttl, $callback)
+                : $callback();
+        };
+
         $claimedStatuses = [
             FoundItemStatus::CLAIM_APPROVED->value,
             FoundItemStatus::COLLECTED->value,
@@ -60,14 +73,14 @@ class DashboardController extends Controller
         $lostItems = array_sum($lostStatusCounts);
 
         // Basic Statistics
-        $totalUsers = Cache::remember('dash.totalUsers', $ttl, fn () => User::count());
-        $totalUsersLastMonth = Cache::remember('dash.totalUsersLastMonth', $ttl, fn () => User::where('created_at', '>=', now()->subMonth())->count());
+        $totalUsers = $remember('dash.totalUsers', fn () => User::count());
+        $totalUsersLastMonth = $remember('dash.totalUsersLastMonth', fn () => User::where('created_at', '>=', now()->subMonth())->count());
         $usersGrowthPercent = $totalUsers > 0 ? round((($totalUsers - $totalUsersLastMonth) / max($totalUsersLastMonth, 1)) * 100, 1) : 0;
 
-        $claimedItemsLastWeek = Cache::remember('dash.claimedItemsLastWeek', $ttl, fn () => FoundItem::whereIn('status', $claimedStatuses)->where('approved_at', '>=', now()->subWeek())->count());
+        $claimedItemsLastWeek = $remember('dash.claimedItemsLastWeek', fn () => FoundItem::whereIn('status', $claimedStatuses)->where('approved_at', '>=', now()->subWeek())->count());
         $claimedGrowthPercent = $claimedItems > 0 ? round((($claimedItems - $claimedItemsLastWeek) / max($claimedItemsLastWeek, 1)) * 100, 1) : 0;
 
-        $decisionMetrics = Cache::remember('dash.decisionMetrics', $ttl, function () {
+        $decisionMetrics = $remember('dash.decisionMetrics', function () {
             $approvedDiff = $this->getMinutesDiffSql('created_at', 'approved_at');
             $approvedAverage = ClaimedItem::whereNotNull('approved_at')
                 ->whereNotNull('created_at')
@@ -117,39 +130,39 @@ class DashboardController extends Controller
                 : 'N/A',
         ];
 
-        $oldestUnclaimed = Cache::remember('dash.oldestUnclaimed', $ttl, fn () => FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)->oldest('date_found')->first());
+        $oldestUnclaimed = $remember('dash.oldestUnclaimed', fn () => FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)->oldest('date_found')->first());
         $oldestUnclaimedDays = $oldestUnclaimed ? now()->diffInDays($oldestUnclaimed->date_found) : 0;
 
-        $foundItemsLastMonth = Cache::remember('dash.foundItemsLastMonth', $ttl, fn () => FoundItem::where('created_at', '>=', now()->subMonth())->count());
+        $foundItemsLastMonth = $remember('dash.foundItemsLastMonth', fn () => FoundItem::where('created_at', '>=', now()->subMonth())->count());
         $foundGrowthPercent = $foundItems > 0 ? round((($foundItems - $foundItemsLastMonth) / max($foundItemsLastMonth, 1)) * 100, 1) : 0;
 
-        $lostItemsLastWeek = Cache::remember('dash.lostItemsLastWeek', $ttl, fn () => LostItem::where('created_at', '>=', now()->subWeek())->count());
+        $lostItemsLastWeek = $remember('dash.lostItemsLastWeek', fn () => LostItem::where('created_at', '>=', now()->subWeek())->count());
         $lostGrowthPercent = $lostItems > 0 ? round((($lostItems - $lostItemsLastWeek) / max($lostItemsLastWeek, 1)) * 100, 1) : 0;
 
         // Pending Claims Statistics
-        $urgentClaims = Cache::remember('dash.urgentClaims', $ttl, fn () => FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)
+        $urgentClaims = $remember('dash.urgentClaims', fn () => FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)
             ->whereNotNull('claimed_at')
             ->where('claimed_at', '<', now()->subHours(24))
             ->count());
 
         // Successful Matches
-        $successfulMatches = Cache::remember('dash.successfulMatches', $ttl, fn () => ItemMatch::where('status', 'confirmed')->count());
-        $totalMatches = Cache::remember('dash.totalMatches', $ttl, fn () => ItemMatch::count());
+        $successfulMatches = $remember('dash.successfulMatches', fn () => ItemMatch::where('status', 'confirmed')->count());
+        $totalMatches = $remember('dash.totalMatches', fn () => ItemMatch::count());
         $matchSuccessRate = $totalMatches > 0 ? round(($successfulMatches / $totalMatches) * 100, 1) : 0;
 
         // Items Collected This Month
-        $collectedThisMonth = Cache::remember('dash.collectedThisMonth', $ttl, fn () => FoundItem::where('status', FoundItemStatus::COLLECTED->value)
+        $collectedThisMonth = $remember('dash.collectedThisMonth', fn () => FoundItem::where('status', FoundItemStatus::COLLECTED->value)
             ->whereNotNull('collected_at')
             ->where('collected_at', '>=', now()->startOfMonth())
             ->count());
-        $collectedLastMonth = Cache::remember('dash.collectedLastMonth', $ttl, fn () => FoundItem::where('status', FoundItemStatus::COLLECTED->value)
+        $collectedLastMonth = $remember('dash.collectedLastMonth', fn () => FoundItem::where('status', FoundItemStatus::COLLECTED->value)
             ->whereNotNull('collected_at')
             ->whereBetween('collected_at', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])
             ->count());
         $collectedGrowthPercent = $collectedThisMonth > 0 ? round((($collectedThisMonth - $collectedLastMonth) / max($collectedLastMonth, 1)) * 100, 1) : 0;
 
         // Collection Metrics
-        $collectionMetrics = Cache::remember('dash.collectionMetrics', $ttl, function () {
+        $collectionMetrics = $remember('dash.collectionMetrics', function () {
             $pending = FoundItem::where('status', FoundItemStatus::CLAIM_APPROVED->value)
                 ->whereNull('collected_at')
                 ->count();
@@ -191,7 +204,7 @@ class DashboardController extends Controller
 
         // AI Match Success Rate (Claimed / Found Items)
         $matchSuccessRatePercent = $foundItems > 0 ? round(($claimedItems / $foundItems) * 100, 1) : 0;
-        $matchSuccessRateLastWeek = Cache::remember('dash.matchSuccessRateLastWeek', $ttl, function() use ($claimedStatuses) {
+        $matchSuccessRateLastWeek = $remember('dash.matchSuccessRateLastWeek', function () use ($claimedStatuses) {
             $claimedLastWeek = FoundItem::whereIn('status', $claimedStatuses)->where('approved_at', '>=', now()->subWeek())->count();
             $foundLastWeek = FoundItem::where('created_at', '>=', now()->subWeek())->count();
             return $foundLastWeek > 0 ? round(($claimedLastWeek / $foundLastWeek) * 100, 1) : 0;
@@ -199,7 +212,7 @@ class DashboardController extends Controller
         $matchSuccessGrowthPercent = round($matchSuccessRatePercent - $matchSuccessRateLastWeek, 1);
 
         // Chart Data - Posts Over Time (Last 7 Days) - Optimized with single query using GROUP BY
-        $postsOverTimeData = Cache::remember('dash.postsOverTimeData', $ttl, function() {
+        $postsOverTimeData = $remember('dash.postsOverTimeData', function() {
             $startDate = now()->subDays(6)->startOfDay();
             $endDate = now()->endOfDay();
             
@@ -249,7 +262,7 @@ class DashboardController extends Controller
         ];
 
         // Chart Data - Top Categories
-        $topCategories = Cache::remember('dash.topCategories', $ttl, function() {
+        $topCategories = $remember('dash.topCategories', function() {
             return Category::withCount(['lostItems', 'foundItems'])
                 ->get()
                 ->map(function($category) {
@@ -257,26 +270,26 @@ class DashboardController extends Controller
                     return $category;
                 })
                 ->sortByDesc('total_items')
-                ->take(6)
+                ->take(9)
                 ->values()
                 ->all();
         });
 
         // Recent Activity
-        $recentActivities = Cache::remember('dash.recentActivities', $ttl, fn () => ActivityLog::with('user')
+        $recentActivities = $remember('dash.recentActivities', fn () => ActivityLog::with('user')
             ->latest('created_at')
             ->take(20)
             ->get());
 
         // Pending Claims for Quick Actions
-        $pendingClaimsList = Cache::remember('dash.pendingClaimsList', $ttl, fn () => FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)
+        $pendingClaimsList = $remember('dash.pendingClaimsList', fn () => FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)
             ->with(['claimedBy', 'category'])
             ->orderBy('claimed_at', 'asc')
             ->take(5)
             ->get());
 
         // Items Near Collection Deadline
-        $itemsNearDeadline = Cache::remember('dash.itemsNearDeadline', $ttl, fn () => FoundItem::where('status', FoundItemStatus::CLAIM_APPROVED->value)
+        $itemsNearDeadline = $remember('dash.itemsNearDeadline', fn () => FoundItem::where('status', FoundItemStatus::CLAIM_APPROVED->value)
             ->whereNull('collected_at')
             ->whereNotNull('collection_deadline')
             ->where('collection_deadline', '>=', now())
@@ -286,43 +299,43 @@ class DashboardController extends Controller
             ->take(5)
             ->get());
 
-        $claimConflictStats = Cache::remember('dash.claimConflictStats', $ttl, fn () => $this->buildClaimConflictStats());
-        $reminderMetrics = Cache::remember('dash.reminderMetrics', $ttl, fn () => $this->buildReminderEffectivenessMetrics());
+        $claimConflictStats = $remember('dash.claimConflictStats', fn () => $this->buildClaimConflictStats());
+        $reminderMetrics = $remember('dash.reminderMetrics', fn () => $this->buildReminderEffectivenessMetrics());
 
-        return view('dashboard', compact(
-            'totalUsers',
-            'usersGrowthPercent',
-            'claimedItems',
-            'claimedGrowthPercent',
-            'unclaimedItems',
-            'oldestUnclaimedDays',
-            'foundItems',
-            'foundGrowthPercent',
-            'lostItems',
-            'lostGrowthPercent',
-            'pendingClaims',
-            'urgentClaims',
-            'successfulMatches',
-            'matchSuccessRate',
-            'collectedThisMonth',
-            'collectedGrowthPercent',
-            'matchSuccessRatePercent',
-            'matchSuccessGrowthPercent',
-            'collectionPending',
-            'collectionOverdue',
-            'collectionAverageLabel',
-            'decisionAverageLabel',
-            'decisionMetrics',
-            'decisionBreakdown',
-            'postsOverTimeData',
-            'itemStatusData',
-            'topCategories',
-            'recentActivities',
-            'pendingClaimsList',
-            'itemsNearDeadline',
-            'claimConflictStats',
-            'reminderMetrics'
-        ));
+        return [
+            'totalUsers' => $totalUsers,
+            'usersGrowthPercent' => $usersGrowthPercent,
+            'claimedItems' => $claimedItems,
+            'claimedGrowthPercent' => $claimedGrowthPercent,
+            'unclaimedItems' => $unclaimedItems,
+            'oldestUnclaimedDays' => $oldestUnclaimedDays,
+            'foundItems' => $foundItems,
+            'foundGrowthPercent' => $foundGrowthPercent,
+            'lostItems' => $lostItems,
+            'lostGrowthPercent' => $lostGrowthPercent,
+            'pendingClaims' => $pendingClaims,
+            'urgentClaims' => $urgentClaims,
+            'successfulMatches' => $successfulMatches,
+            'matchSuccessRate' => $matchSuccessRate,
+            'collectedThisMonth' => $collectedThisMonth,
+            'collectedGrowthPercent' => $collectedGrowthPercent,
+            'matchSuccessRatePercent' => $matchSuccessRatePercent,
+            'matchSuccessGrowthPercent' => $matchSuccessGrowthPercent,
+            'collectionPending' => $collectionPending,
+            'collectionOverdue' => $collectionOverdue,
+            'collectionAverageLabel' => $collectionAverageLabel,
+            'decisionAverageLabel' => $decisionAverageLabel,
+            'decisionMetrics' => $decisionMetrics,
+            'decisionBreakdown' => $decisionBreakdown,
+            'postsOverTimeData' => $postsOverTimeData,
+            'itemStatusData' => $itemStatusData,
+            'topCategories' => $topCategories,
+            'recentActivities' => $recentActivities,
+            'pendingClaimsList' => $pendingClaimsList,
+            'itemsNearDeadline' => $itemsNearDeadline,
+            'claimConflictStats' => $claimConflictStats,
+            'reminderMetrics' => $reminderMetrics,
+        ];
     }
 
     protected function buildClaimConflictStats(): array
@@ -706,155 +719,13 @@ class DashboardController extends Controller
      */
     public function getDashboardData()
     {
-		// This method bypasses cache for real-time data
-		$claimedStatuses = [
-			FoundItemStatus::CLAIM_APPROVED->value,
-			FoundItemStatus::COLLECTED->value,
-		];
+        $stats = $this->buildDashboardStats(false);
 
-		$foundStatusCounts = AnalyticsCounter::getFoundStatusCounts();
-		$lostStatusCounts = AnalyticsCounter::getLostStatusCounts();
-
-		$claimedItems = ($foundStatusCounts[FoundItemStatus::CLAIM_APPROVED->value] ?? 0)
-			+ ($foundStatusCounts[FoundItemStatus::COLLECTED->value] ?? 0);
-		$pendingClaims = $foundStatusCounts[FoundItemStatus::CLAIM_PENDING->value] ?? 0;
-		$unclaimedItems = $foundStatusCounts[FoundItemStatus::FOUND_UNCLAIMED->value] ?? 0;
-		$foundItems = array_sum($foundStatusCounts);
-		$lostItems = array_sum($lostStatusCounts);
-
-		$totalUsers = User::count();
-		$totalUsersLastMonth = User::where('created_at', '>=', now()->subMonth())->count();
-		$usersGrowthPercent = $totalUsers > 0 ? round((($totalUsers - $totalUsersLastMonth) / max($totalUsersLastMonth, 1)) * 100, 1) : 0;
-
-		$claimedItemsLastWeek = FoundItem::whereIn('status', $claimedStatuses)->where('approved_at', '>=', now()->subWeek())->count();
-		$claimedGrowthPercent = $claimedItems > 0 ? round((($claimedItems - $claimedItemsLastWeek) / max($claimedItemsLastWeek, 1)) * 100, 1) : 0;
-		$foundLastWeek = FoundItem::where('created_at', '>=', now()->subWeek())->count();
-
-        $decisionApprovedDiff = $this->getMinutesDiffSql('created_at', 'approved_at');
-        $decisionMetrics = FoundItem::whereNotNull('approved_at')
-            ->whereNotNull('created_at')
-            ->select(DB::raw("AVG($decisionApprovedDiff) as minutes"))
-            ->value('minutes');
-
-        $decisionRejectedDiff = $this->getMinutesDiffSql('created_at', 'rejected_at');
-        $rejectedAverage = FoundItem::whereNotNull('rejected_at')
-            ->whereNotNull('created_at')
-            ->select(DB::raw("AVG($decisionRejectedDiff) as minutes"))
-            ->value('minutes');
-
-        $decisionCombinedDiff = $this->getMinutesDiffSql('created_at', 'COALESCE(approved_at, rejected_at)');
-        $combinedAverage = FoundItem::where(function ($query) {
-            $query->whereNotNull('approved_at')->orWhereNotNull('rejected_at');
-        })
-            ->whereNotNull('created_at')
-            ->select(DB::raw("AVG($decisionCombinedDiff) as minutes"))
-            ->value('minutes');
-
-		$decisionAverageLabel = $combinedAverage !== null
-			? CarbonInterval::minutes((int) round($combinedAverage))->cascade()->forHumans([
-				'short' => true,
-				'parts' => 2,
-			])
-			: 'N/A';
-
-        $oldestUnclaimed = FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)->oldest('date_found')->first();
-        $oldestUnclaimedDays = $oldestUnclaimed ? now()->diffInDays($oldestUnclaimed->date_found) : 0;
-
-        $foundItemsLastMonth = FoundItem::where('created_at', '>=', now()->subMonth())->count();
-        $foundGrowthPercent = $foundItems > 0 ? round((($foundItems - $foundItemsLastMonth) / max($foundItemsLastMonth, 1)) * 100, 1) : 0;
-
-        $lostItemsLastWeek = LostItem::where('created_at', '>=', now()->subWeek())->count();
-        $lostGrowthPercent = $lostItems > 0 ? round((($lostItems - $lostItemsLastWeek) / max($lostItemsLastWeek, 1)) * 100, 1) : 0;
-
-        $urgentClaims = FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)
-            ->whereNotNull('claimed_at')
-            ->where('claimed_at', '<', now()->subHours(24))
-            ->count();
-
-        $successfulMatches = ItemMatch::where('status', 'confirmed')->count();
-        $totalMatches = ItemMatch::count();
-        $matchSuccessRate = $totalMatches > 0 ? round(($successfulMatches / $totalMatches) * 100, 1) : 0;
-
-        $collectedThisMonth = FoundItem::where('status', FoundItemStatus::COLLECTED->value)
-            ->whereNotNull('collected_at')
-            ->where('collected_at', '>=', now()->startOfMonth())
-            ->count();
-        $collectedLastMonth = FoundItem::where('status', FoundItemStatus::COLLECTED->value)
-            ->whereNotNull('collected_at')
-            ->whereBetween('collected_at', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])
-            ->count();
-        $collectedGrowthPercent = $collectedThisMonth > 0 ? round((($collectedThisMonth - $collectedLastMonth) / max($collectedLastMonth, 1)) * 100, 1) : 0;
-
-        $matchSuccessRatePercent = $foundItems > 0 ? round(($claimedItems / $foundItems) * 100, 1) : 0;
-        $matchSuccessRateLastWeek = $foundLastWeek > 0 ? round(($claimedItemsLastWeek / $foundLastWeek) * 100, 1) : 0;
-        $matchSuccessGrowthPercent = round($matchSuccessRatePercent - $matchSuccessRateLastWeek, 1);
-
-		$collectionPending = FoundItem::where('status', FoundItemStatus::CLAIM_APPROVED->value)
-			->count();
-
-		$collectionOverdue = FoundItem::where('status', FoundItemStatus::CLAIM_APPROVED->value)
-			->whereNotNull('collection_deadline')
-			->where('collection_deadline', '<', now())
-			->count();
-
-		$collectionAvgDiff = $this->getMinutesDiffSql('approved_at', 'collected_at');
-		$collectionAverageMinutes = FoundItem::where('status', FoundItemStatus::COLLECTED->value)
-			->whereNotNull('collected_at')
-			->whereNotNull('approved_at')
-			->select(DB::raw("AVG($collectionAvgDiff) as avg_minutes"))
-			->value('avg_minutes');
-
-		$collectionAverageLabel = $collectionAverageMinutes !== null
-			? CarbonInterval::minutes((int) round($collectionAverageMinutes))->cascade()->forHumans([
-				'short' => true,
-				'parts' => 2,
-			])
-			: 'N/A';
-
-		$decisionAvgDiff = $this->getMinutesDiffSql('created_at', 'COALESCE(approved_at, rejected_at)');
-		$decisionAverageMinutes = ClaimedItem::where(function ($query) {
-			$query->whereNotNull('approved_at')->orWhereNotNull('rejected_at');
-		})
-			->whereNotNull('created_at')
-			->select(DB::raw("AVG($decisionAvgDiff) as minutes"))
-			->value('minutes');
-
-		$decisionAverageLabel = $decisionAverageMinutes !== null
-			? CarbonInterval::minutes((int) round($decisionAverageMinutes))->cascade()->forHumans([
-				'short' => true,
-				'parts' => 2,
-			])
-			: 'N/A';
-
-		$decisionApprovedBreakdown = $this->getMinutesDiffSql('created_at', 'approved_at');
-		$decisionRejectedBreakdown = $this->getMinutesDiffSql('created_at', 'rejected_at');
-		$decisionBreakdown = [
-			'approved' => ClaimedItem::whereNotNull('approved_at')
-				->whereNotNull('created_at')
-				->select(DB::raw("AVG($decisionApprovedBreakdown) as minutes"))
-				->value('minutes'),
-			'rejected' => ClaimedItem::whereNotNull('rejected_at')
-				->whereNotNull('created_at')
-				->select(DB::raw("AVG($decisionRejectedBreakdown) as minutes"))
-				->value('minutes'),
-		];
-
-		$decisionBreakdown = array_map(function ($minutes) {
-			if ($minutes === null) {
-				return 'N/A';
-			}
-			return CarbonInterval::minutes((int) round($minutes))->cascade()->forHumans([
-				'short' => true,
-				'parts' => 2,
-			]);
-		}, $decisionBreakdown);
-
-        // Recent activities (last 20)
-        $recentActivities = ActivityLog::with('user')
+        $stats['recentActivities'] = ActivityLog::with('user')
             ->latest('created_at')
             ->take(20)
             ->get()
-            ->map(function($activity) {
+            ->map(function ($activity) {
                 return [
                     'id' => $activity->id,
                     'action' => $activity->action,
@@ -865,8 +736,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Pending claims (top 5)
-        $pendingClaimsList = FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)
+        $stats['pendingClaimsList'] = FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)
             ->with(['claimedBy', 'category'])
             ->orderBy('claimed_at', 'asc')
             ->take(5)
@@ -881,8 +751,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        // Items near deadline (top 5)
-        $itemsNearDeadline = FoundItem::where('status', FoundItemStatus::CLAIM_APPROVED->value)
+        $stats['itemsNearDeadline'] = FoundItem::where('status', FoundItemStatus::CLAIM_APPROVED->value)
             ->whereNull('collected_at')
             ->whereNotNull('collection_deadline')
             ->where('collection_deadline', '>=', now())
@@ -900,42 +769,11 @@ class DashboardController extends Controller
                 ];
             });
 
-        $claimConflictStats = $this->buildClaimConflictStats();
-        $reminderMetrics = $this->buildReminderEffectivenessMetrics();
+        $stats['claimConflictStats'] = $this->buildClaimConflictStats();
+        $stats['reminderMetrics'] = $this->buildReminderEffectivenessMetrics();
+        $stats['updated_at'] = now()->toIso8601String();
 
-        return response()->json([
-            'stats' => [
-                'totalUsers' => $totalUsers,
-                'usersGrowthPercent' => $usersGrowthPercent,
-                'claimedItems' => $claimedItems,
-                'claimedGrowthPercent' => $claimedGrowthPercent,
-                'unclaimedItems' => $unclaimedItems,
-                'oldestUnclaimedDays' => $oldestUnclaimedDays,
-                'foundItems' => $foundItems,
-                'foundGrowthPercent' => $foundGrowthPercent,
-                'lostItems' => $lostItems,
-                'lostGrowthPercent' => $lostGrowthPercent,
-                'pendingClaims' => $pendingClaims,
-                'urgentClaims' => $urgentClaims,
-                'successfulMatches' => $successfulMatches,
-                'matchSuccessRate' => $matchSuccessRate,
-                'collectedThisMonth' => $collectedThisMonth,
-                'collectedGrowthPercent' => $collectedGrowthPercent,
-                'matchSuccessRatePercent' => $matchSuccessRatePercent,
-                'matchSuccessGrowthPercent' => $matchSuccessGrowthPercent,
-				'collectionPending' => $collectionPending,
-				'collectionOverdue' => $collectionOverdue,
-				'collectionAverageLabel' => $collectionAverageLabel,
-                'decisionAverageLabel' => $decisionAverageLabel,
-                'decisionBreakdown' => $decisionBreakdown,
-            ],
-            'recentActivities' => $recentActivities,
-            'pendingClaimsList' => $pendingClaimsList,
-            'itemsNearDeadline' => $itemsNearDeadline,
-            'claimConflictStats' => $claimConflictStats,
-            'reminderMetrics' => $reminderMetrics,
-            'updated_at' => now()->toIso8601String(),
-        ]);
+        return response()->json($stats);
     }
 
     /**

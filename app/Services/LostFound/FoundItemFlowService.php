@@ -56,6 +56,9 @@ class FoundItemFlowService
 			$item->claim_message = $winningClaim->message;
 			$item->claimant_contact_name = $winningClaim->claimant_contact_name;
 			$item->claimant_contact_info = $winningClaim->claimant_contact_info;
+			$item->claimant_email = $winningClaim->claimant_email;
+			$item->claimant_phone = $winningClaim->claimant_phone;
+			$item->claim_image = $winningClaim->claim_image;
 			$item->claimed_at = $winningClaim->created_at ?? now();
 			$item->approved_by = $adminId;
 			$item->approved_at = now();
@@ -172,6 +175,9 @@ class FoundItemFlowService
 					$item->claim_message = $nextClaim->message;
 					$item->claimant_contact_name = $nextClaim->claimant_contact_name;
 					$item->claimant_contact_info = $nextClaim->claimant_contact_info;
+					$item->claimant_email = $nextClaim->claimant_email;
+					$item->claimant_phone = $nextClaim->claimant_phone;
+					$item->claim_image = $nextClaim->claim_image;
 					$item->claimed_at = $nextClaim->created_at ?? now();
 					$item->status = FoundItemStatus::CLAIM_PENDING;
 					$item->rejected_by = null;
@@ -314,6 +320,9 @@ class FoundItemFlowService
 		$item->claim_message = null;
 		$item->claimant_contact_name = null;
 		$item->claimant_contact_info = null;
+		$item->claimant_email = null;
+		$item->claimant_phone = null;
+		$item->claim_image = null;
 		$item->claimed_at = null;
 		$item->approved_at = null;
 		$item->approved_by = null;

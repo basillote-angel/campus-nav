@@ -297,6 +297,9 @@ class SyncClaimedItemsJob implements ShouldQueue
 			$item->claim_message = null;
 			$item->claimant_contact_name = null;
 			$item->claimant_contact_info = null;
+			$item->claimant_email = null;
+			$item->claimant_phone = null;
+			$item->claim_image = null;
 			$item->claimed_at = null;
 			$item->approved_at = null;
 			$item->approved_by = null;

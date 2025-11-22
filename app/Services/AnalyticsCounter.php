@@ -32,11 +32,17 @@ class AnalyticsCounter
 			return [];
 		}
 
+		$rawCounts = FoundItem::query()
+			->selectRaw('status, COUNT(*) as aggregate')
+			->groupBy('status')
+			->pluck('aggregate', 'status')
+			->toArray();
+
 		$counts = [
-			FoundItemStatus::FOUND_UNCLAIMED->value => FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)->count(),
-			FoundItemStatus::CLAIM_PENDING->value => FoundItem::where('status', FoundItemStatus::CLAIM_PENDING->value)->count(),
-			FoundItemStatus::CLAIM_APPROVED->value => FoundItem::where('status', FoundItemStatus::CLAIM_APPROVED->value)->count(),
-			FoundItemStatus::COLLECTED->value => FoundItem::where('status', FoundItemStatus::COLLECTED->value)->count(),
+			FoundItemStatus::FOUND_UNCLAIMED->value => (int) ($rawCounts[FoundItemStatus::FOUND_UNCLAIMED->value] ?? 0),
+			FoundItemStatus::CLAIM_PENDING->value => (int) ($rawCounts[FoundItemStatus::CLAIM_PENDING->value] ?? 0),
+			FoundItemStatus::CLAIM_APPROVED->value => (int) ($rawCounts[FoundItemStatus::CLAIM_APPROVED->value] ?? 0),
+			FoundItemStatus::COLLECTED->value => (int) ($rawCounts[FoundItemStatus::COLLECTED->value] ?? 0),
 		];
 
 		Cache::forever(self::CACHE_FOUND, $counts);
@@ -51,9 +57,15 @@ class AnalyticsCounter
 			return [];
 		}
 
+		$rawCounts = LostItem::query()
+			->selectRaw('status, COUNT(*) as aggregate')
+			->groupBy('status')
+			->pluck('aggregate', 'status')
+			->toArray();
+
 		$counts = [
-			LostItemStatus::LOST_REPORTED->value => LostItem::where('status', LostItemStatus::LOST_REPORTED->value)->count(),
-			LostItemStatus::RESOLVED->value => LostItem::where('status', LostItemStatus::RESOLVED->value)->count(),
+			LostItemStatus::LOST_REPORTED->value => (int) ($rawCounts[LostItemStatus::LOST_REPORTED->value] ?? 0),
+			LostItemStatus::RESOLVED->value => (int) ($rawCounts[LostItemStatus::RESOLVED->value] ?? 0),
 		];
 
 		Cache::forever(self::CACHE_LOST, $counts);

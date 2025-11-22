@@ -19,7 +19,7 @@
 </head>
 
 @php
-    $androidDownloadUrl = config('services.navistfind.android_url', '#');
+    $androidDownloadUrl = config('services.navistfind.android_url', 'https://drive.google.com/drive/folders/1J9fEDpHjuLhwN7bkXTDH6KxTl3P25fVD?usp=drive_link');
     $supportEmail = config('services.navistfind.support_email', 'support@navistfind.org');
     $adminAccessEmail = config('services.navistfind.admin_access_email', 'admin-support@navistfind.edu');
 @endphp
@@ -90,8 +90,6 @@
                     <div class="max-w-xl text-center lg:text-left">
                         <p class="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em]">
                             Find lost items now
-                            <span class="h-1 w-1 rounded-full bg-[#ffb86c]"></span>
-                            Live updates
                         </p>
                         <h1 class="mt-6 text-4xl font-bold leading-tight md:text-5xl lg:text-[3.5rem]">
                             Find your campus essentials with
@@ -110,19 +108,14 @@
                                 Admin Sign In
                             </a>
                         </div>
-                        <p class="mt-2 text-xs uppercase tracking-[0.25em] text-white/70">Android first • iOS beta soon</p>
-                        <div class="mt-10 grid gap-4 rounded-2xl border border-white/20 bg-white/5 p-5 text-left shadow-lg shadow-black/10 sm:grid-cols-3">
+                        <div class="mt-10 grid gap-4 rounded-2xl border border-white/20 bg-white/5 p-5 text-left shadow-lg shadow-black/10 sm:grid-cols-2">
                             <div>
-                                <p class="text-xs uppercase tracking-wide text-white/70">Active students</p>
+                                <p class="text-xs uppercase tracking-wide text-white/70">Active Mobile Users</p>
                                 <p class="mt-1 text-2xl font-bold">{{ number_format($activeStudentCount ?? 0) }}</p>
                             </div>
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-white/70">Resolved pickups</p>
-                                <p class="mt-1 text-2xl font-bold">1,240+</p>
-                            </div>
-                            <div>
-                                <p class="text-xs uppercase tracking-wide text-white/70">Median response</p>
-                                <p class="mt-1 text-2xl font-bold">2h 45m</p>
+                                <p class="mt-1 text-2xl font-bold">{{ number_format($resolvedPickupCount ?? 0) }}</p>
                             </div>
                         </div>
                     </div>
@@ -158,9 +151,9 @@
             <span class="inline-flex items-center gap-2 rounded-full bg-[#e6eefc] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-[#123a7d]">
                 Features
             </span>
-            <h2 class="mt-4 text-3xl md:text-4xl font-semibold text-[#1c1c3f]">Every role gets superpowers</h2>
+            <h2 class="mt-4 text-3xl md:text-4xl font-semibold text-[#1c1c3f]">Mission-Ready Support for the Lost & Found Team</h2>
             <p class="mt-3 text-sm text-[#4b4e6b] md:text-base max-w-2xl mx-auto">
-                Discover how students, AI, and admins collaborate across one guided workflow to return essentials faster.
+                Students share what's missing, AI surfaces the leads, and admins authorize the reunions, all within a secure command center.
             </p>
         </div>
 
@@ -177,10 +170,10 @@
                 </div>
                 <h3 class="mt-5 text-2xl font-semibold text-[#1c1c3f]">Lost item reporting</h3>
                 <p class="mt-3 text-sm text-slate-600 leading-relaxed">
-                    Capture details, attach proof, and submit within seconds. Smart validation keeps every post clean and match-ready.
+                    Students, teachers, staff, or parents can browse admin-posted found items and log what’s missing with item name, category, date, location, and a precise description.
                 </p>
-                <div class="mt-6 h-48 overflow-hidden rounded-2xl bg-gradient-to-br from-[#f7f8ff] to-white p-4">
-                    <img src="{{ asset('images/post_item.jpg') }}" alt="App screenshot of lost item reporting" class="h-full w-full rounded-2xl object-cover shadow-lg shadow-[#c7cbff]/40">
+                <div class="mt-6 h-48 rounded-2xl bg-gradient-to-br from-[#f7f8ff] to-white p-4 flex items-center justify-center">
+                    <img src="{{ asset('images/post_item1.png') }}" alt="App screenshot of lost item reporting" class="max-h-full max-w-full rounded-2xl object-contain shadow-lg shadow-[#c7cbff]/40">
                 </div>
             </div>
 
@@ -195,10 +188,10 @@
                 </div>
                 <h3 class="mt-5 text-2xl font-semibold text-[#1c1c3f]">Smart recommendations</h3>
                 <p class="mt-3 text-sm text-slate-600 leading-relaxed">
-                    SBERT similarity scoring surfaces potential matches, notifies students, and escalates duplicate claims to admins.
+                    AI compares each lost report to admin-posted found items, notifies the highest-confidence match, and recommends other likely candidates right inside the app.
                 </p>
-                <div class="mt-6 h-48 overflow-hidden rounded-2xl bg-gradient-to-br from-[#eef6ff] to-white p-4">
-                    <img src="{{ asset('images/recomendation.jpg') }}" alt="AI smart recommendations" class="h-full w-full rounded-2xl object-cover shadow-lg shadow-[#9ed3ff]/40">
+                <div class="mt-6 h-48 rounded-2xl bg-gradient-to-br from-[#f7f8ff] to-white p-4 flex items-center justify-center">
+                    <img src="{{ asset('images/recomendation.png') }}" alt="AI smart recommendations" class="max-h-full max-w-full rounded-2xl object-contain shadow-lg shadow-[#c7cbff]/40">
                 </div>
             </div>
 
@@ -214,10 +207,10 @@
                 </div>
                 <h3 class="mt-5 text-2xl font-semibold text-[#1c1c3f]">Accountable decisions</h3>
                 <p class="mt-3 text-sm text-slate-600 leading-relaxed">
-                    Evaluate claims with evidence, lock items for pickup, and archive releases with complete audit logs.
+                    Approvals send pickup instructions plus AR navigation to the mobile user so they know exactly how to reach the office and collect the item after verification.
                 </p>
-                <div class="mt-6 h-48 overflow-hidden rounded-2xl bg-gradient-to-br from-[#fff3ec] to-white p-4">
-                    <img src="{{ asset('images/claim.png') }}" alt="Admin dashboard for claims" class="h-full w-full rounded-2xl object-cover shadow-lg shadow-[#ffd4ba]/50">
+                <div class="mt-6 h-48 rounded-2xl bg-gradient-to-br from-[#f7f8ff] to-white p-4 flex items-center justify-center">
+                    <img src="{{ asset('images/claim.png') }}" alt="Admin dashboard for claims" class="max-h-full max-w-full rounded-2xl object-contain shadow-lg shadow-[#c7cbff]/40">
                 </div>
             </div>
 
@@ -227,63 +220,68 @@
 
 
 
-            <section id="howitwork" class="bg-white">
+            <section id="howitwork" class="bg-gradient-to-br from-[#123a7d] via-[#0f2f63] to-[#061842] text-white">
                 <div class="mx-auto max-w-6xl px-6 py-18 md:py-20">
                     <div class="mb-12 text-center">
-                        <span class="inline-flex items-center gap-2 rounded-full bg-[#e6eefc] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-[#123a7d]">
+                        <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.3em] text-white">
                             How it works
                         </span>
-                        <h2 class="mt-4 text-3xl font-semibold text-[#1c1c3f]">From lost alert to verified pickup</h2>
-                        <p class="mt-2 text-sm text-slate-600 md:text-base">Each milestone keeps students informed while giving admins everything they need to make the handoff seamless.</p>
+                        <h2 class="mt-4 text-3xl font-semibold text-white">From lost alert to verified pickup</h2>
+                        <p class="mt-2 text-sm text-white/80 md:text-base">Each milestone keeps students informed while giving admins everything they need to make the handoff seamless.</p>
                     </div>
 
                     @php
                         $steps = [
                             [
                                 'title' => 'Lost item reported',
-                                'copy' => 'Student captures the essentials in the NavistFind mobile app (title, description, photo, location).',
+                                'copy' => 'Students, teachers, staff, and parents can view every admin-posted found item and log what’s missing with item name, category, date, location, description, and proof.',
                                 'badge' => 'Mobile',
                                 'icon' => 'pencil',
-                                'tone' => 'sky'
+                                'tone' => 'sky',
+                                'meta' => 'Structured intake',
                             ],
                             [
                                 'title' => 'AI matches suggested',
-                                'copy' => 'SBERT engine acts instantly, comparing the post against found inventory and notifying the student.',
+                                'copy' => 'AI instantly compares the lost post with found inventory, alerts the strongest match, and recommends alternates inside the app for one-tap review.',
                                 'badge' => 'AI Engine',
                                 'icon' => 'sparkles',
-                                'tone' => 'violet'
+                                'tone' => 'violet',
+                                'meta' => '0.8s scan time',
                             ],
                             [
                                 'title' => 'Claim submitted',
-                                'copy' => 'Student taps “This is mine”, leaves proof, and the found item locks into a pending claim state.',
+                                'copy' => 'Mobile users submit a claim with ID or receipt proof, locking the item into review while duplicates and conflicts stay flagged for admins.',
                                 'badge' => 'Mobile',
                                 'icon' => 'chat-bubble',
-                                'tone' => 'emerald'
+                                'tone' => 'emerald',
+                                'meta' => 'Secure locker',
                             ],
                             [
                                 'title' => 'Admin decision',
-                                'copy' => 'Staff validates evidence inside the web portal, approving or rejecting with documented reasoning.',
+                                'copy' => 'Admins evaluate evidence side-by-side, apply approval templates, and log every action so the audit trail is effortless.',
                                 'badge' => 'Admin',
                                 'icon' => 'check-badge',
-                                'tone' => 'amber'
+                                'tone' => 'amber',
+                                'meta' => '5m avg review',
                             ],
                             [
                                 'title' => 'Pickup & archive',
-                                'copy' => 'Admin records ID verification, hands over the item, and archives the case for audit readiness.',
+                                'copy' => 'Approved students get push instructions plus AR navigation to the office, hand off the item, and archive the case.',
                                 'badge' => 'Admin',
                                 'icon' => 'archive-box',
-                                'tone' => 'slate'
+                                'tone' => 'slate',
+                                'meta' => 'Guided handoff',
                             ],
                         ];
                     @endphp
 
                     <div class="relative">
-                        <div class="pointer-events-none absolute left-0 right-0 top-[84px] hidden h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent md:block"></div>
+                        <div class="pointer-events-none absolute left-0 right-0 top-[88px] hidden h-px bg-gradient-to-r from-transparent via-white/20 to-transparent md:block"></div>
                         <div class="grid gap-6 md:grid-cols-5">
                             @foreach ($steps as $index => $step)
-                                <div class="group relative flex h-full flex-col gap-4 rounded-3xl border border-slate-200 bg-white px-5 py-8 text-left shadow-sm transition-transform hover:-translate-y-1 hover:shadow-lg">
+                                <div class="group relative flex h-full flex-col gap-4 rounded-3xl border border-white/10 bg-white/10 px-5 py-6 text-left shadow-lg shadow-[#050b1f]/10 backdrop-blur">
                                     <div class="flex items-center gap-3">
-                                        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-{{ $step['tone'] }}-100 text-{{ $step['tone'] }}-600 shadow-inner shadow-{{ $step['tone'] }}-200/60">
+                                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff4db] text-[#c2612d] shadow-inner shadow-[#f7d18a]/50">
                                             @switch($step['icon'])
                                                 @case('pencil')
                                                     <x-heroicon-o-pencil-square class="h-6 w-6" />
@@ -302,17 +300,18 @@
                                                     @break
                                             @endswitch
                                         </div>
-                                        <span class="inline-flex items-center gap-2 rounded-full border border-{{ $step['tone'] }}-200 bg-{{ $step['tone'] }}-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-{{ $step['tone'] }}-600">
-                                            Step {{ $index + 1 }} • {{ $step['badge'] }}
+                                        <span class="inline-flex items-center gap-2 rounded-full border border-white/30 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80">
+                                            Step {{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}
                                         </span>
                                     </div>
-                                    <h3 class="text-lg font-semibold text-[#1c1c3f]">{{ $step['title'] }}</h3>
-                                    <p class="text-sm text-slate-600">{{ $step['copy'] }}</p>
+                                    <h3 class="text-xl font-semibold text-white">{{ $step['title'] }}</h3>
+                                    <p class="text-sm text-white/80 leading-relaxed">{{ $step['copy'] }}</p>
+                                    <div class="flex flex-wrap items-center gap-3 pt-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/80">
+                                        <span class="rounded-full bg-white/15 px-3 py-1 text-white">{{ $step['badge'] }}</span>
+                                        <span class="text-white/80">{{ $step['meta'] }}</span>
+                                    </div>
                                     @if($index < count($steps) - 1)
-                                        <span class="absolute right-[-20px] top-16 hidden h-0.5 w-10 rounded-full bg-slate-200 md:block"></span>
-                                    @endif
-                                    @if($index < count($steps) - 1)
-                                        <span class="block h-0.5 w-20 rounded-full bg-slate-200 md:hidden"></span>
+                                        <span class="pointer-events-none absolute right-[-18px] top-16 hidden h-0.5 w-9 rounded-full bg-white/30 md:block"></span>
                                     @endif
                                 </div>
                             @endforeach
@@ -324,61 +323,100 @@
             </section>
         </main>
                 
-             <section class="bg-gradient-to-r from-[#123a7d] to-[#0f2f63] py-16 text-white">
-            <div class="mx-auto flex max-w-6xl flex-col gap-8 px-6 lg:flex-row lg:items-center">
-                <div class="flex-1">
-                    <p class="text-sm uppercase tracking-[0.4em] text-white/70">Lost items? We’ve got you covered</p>
-                    <h2 class="mt-3 text-3xl font-semibold leading-tight lg:text-4xl">Bring NavistFind to every student pocket.</h2>
-                    <p class="mt-4 text-white/80">Download the Android app or log into the admin console to keep every handoff organized and auditable.</p>
-                    <div class="mt-6 flex flex-wrap items-center gap-3">
-                        <a href="{{ $androidDownloadUrl }}" class="inline-flex items-center justify-center gap-3 rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-[#123a7d] shadow-lg shadow-black/20 transition-transform hover:-translate-y-0.5">
-                            <x-heroicon-o-device-phone-mobile class="h-5 w-5" />
-                            Download Mobile App
-                        </a>
-                        <span class="text-xs uppercase tracking-[0.3em] text-white/70">v1.4.0 • Android 11+</span>
-                    </div>
-                </div>
-                <div class="flex flex-1 items-center justify-center">
-                    <div class="rounded-3xl border border-white/30 bg-white/10 p-6 text-center shadow-2xl backdrop-blur">
-                        <p class="text-xs uppercase tracking-[0.4em] text-white/70">Scan to preview</p>
-                        <div class="mt-4 rounded-2xl bg-white/80 p-4">
-                            <img src="{{ asset('images/navistfind-mockup.png') }}" alt="NavistFind preview" class="h-32 w-32 rounded-2xl object-cover shadow-inner shadow-black/10">
-                        </div>
-                        <p class="mt-4 text-sm text-white/80">Show this to students during orientation to onboard faster.</p>
-                    </div>
+             <section class="bg-white py-16 text-[#1c1c3f]">
+            <div class="mx-auto max-w-4xl px-6 text-center">
+                <p class="text-sm uppercase tracking-[0.4em] text-[#0f2f63]">Lost items? We’ve got you covered</p>
+                <h2 class="mt-3 text-3xl font-semibold leading-tight text-[#0b1b3f] lg:text-4xl">Bring NavistFind to every student pocket.</h2>
+                <p class="mt-4 text-[#4b4e6b]">Download the Android app or log into the admin console to keep every handoff organized and auditable.</p>
+                <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+                    <a href="{{ $androidDownloadUrl }}" class="inline-flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#123a7d] to-[#0f2f63] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#123a7d]/30 transition-transform hover:-translate-y-0.5">
+                        <x-heroicon-o-device-phone-mobile class="h-5 w-5" />
+                        Download Mobile App
+                    </a>
                 </div>
             </div>
         </section>
 
-             <footer id="support" class="border-t border-slate-200 bg-white">
-            <div class="mx-auto grid max-w-6xl gap-10 px-6 py-12 md:grid-cols-[1.3fr_1fr]">
-                <div class="space-y-4">
-                    <p class="text-xs uppercase tracking-[0.35em] text-slate-400">NavistFind • Carmen National High School</p>
-                    <h4 class="text-2xl font-semibold text-[#1c1c3f]">Need help with the lost &amp; found process?</h4>
-                    <p class="text-sm text-slate-600">
-                        Our campus support team can guide you through reporting items, monitoring claims, or handling pickups. Reach out anytime during school office hours.
-                    </p>
-                    <div class="inline-flex items-center gap-3 rounded-full border border-[#123a7d]/40 bg-[#e6eefc] px-5 py-2 text-sm font-semibold text-[#123a7d]">
-                        <x-heroicon-o-clock class="h-5 w-5" />
-                        Monday – Friday • 8:00 AM – 5:00 PM
+            <footer id="support" class="bg-gradient-to-r from-[#0f2f63] via-[#0b1b3f] to-[#050b1f] text-white">
+            <div class="mx-auto max-w-6xl px-6 py-14">
+                <div class="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <img src="{{ asset('images/logo.png') }}" alt="NavistFind logo" class="h-12 w-12 rounded-2xl border border-white/20">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.4em] text-white/60">NavistFind</p>
+                                <p class="text-lg font-semibold">Carmen National High School</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-white/80">
+                            Our campus command center helps you log items, validate claims, and hand off essentials with complete audit trails.
+                        </p>
+                        <div class="inline-flex items-center gap-3 rounded-full border border-white/30 bg-white/5 px-5 py-2 text-sm font-semibold text-white">
+                            <x-heroicon-o-clock class="h-5 w-5" />
+                            Monday – Friday • 8:00 AM – 4:00 PM
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.35em] text-[#f9c74f]">Quick links</p>
+                        <ul class="mt-4 space-y-2 text-sm">
+                            <li>
+                                <a href="#home" class="inline-flex items-center gap-2 text-white/80 transition-colors hover:text-white">
+                                    Home
+                                    <x-heroicon-o-arrow-up-right class="h-3.5 w-3.5" />
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#features" class="inline-flex items-center gap-2 text-white/80 transition-colors hover:text-white">
+                                    Features
+                                    <x-heroicon-o-arrow-up-right class="h-3.5 w-3.5" />
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#howitwork" class="inline-flex items-center gap-2 text-white/80 transition-colors hover:text-white">
+                                    How it works
+                                    <x-heroicon-o-arrow-up-right class="h-3.5 w-3.5" />
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#support" class="inline-flex items-center gap-2 text-white/80 transition-colors hover:text-white">
+                                    Support
+                                    <x-heroicon-o-arrow-up-right class="h-3.5 w-3.5" />
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="space-y-3 text-sm text-white/80">
+                        <p class="text-xs uppercase tracking-[0.35em] text-[#f9c74f]">Contact</p>
+                        <a href="mailto:{{ $supportEmail }}" class="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 transition-colors hover:bg-white/10">
+                            <span class="rounded-full bg-white/10 p-2">
+                                <x-heroicon-o-envelope class="h-5 w-5" />
+                            </span>
+                            {{ $supportEmail }}
+                        </a>
+                        <a href="mailto:{{ $adminAccessEmail }}" class="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 transition-colors hover:bg-white/10">
+                            <span class="rounded-full bg-white/10 p-2">
+                                <x-heroicon-o-shield-check class="h-5 w-5" />
+                            </span>
+                            {{ $adminAccessEmail }}
+                        </a>
+                        <a href="tel:+631234567890" class="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 transition-colors hover:bg-white/10">
+                            <span class="rounded-full bg-white/10 p-2">
+                                <x-heroicon-o-phone class="h-5 w-5" />
+                            </span>
+                            +63 123 456 7890
+                        </a>
                     </div>
                 </div>
-                <div class="space-y-3 text-sm text-slate-600">
-                    <a href="mailto:{{ $supportEmail }}" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-[#f8faff] px-4 py-3 transition-colors hover:border-[#123a7d] hover:text-[#123a7d]">
-                        <span class="rounded-full bg-[#123a7d]/10 p-2 text-[#123a7d]">
-                            <x-heroicon-o-envelope class="h-5 w-5" />
-                        </span>
-                        {{ $supportEmail }}
-                    </a>
-                    <a href="tel:+631234567890" class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition-colors hover:border-[#123a7d] hover:text-[#123a7d]">
-                        <span class="rounded-full bg-[#123a7d]/10 p-2 text-[#123a7d]">
-                            <x-heroicon-o-phone class="h-5 w-5" />
-                        </span>
-                        +63 123 456 7890
-                    </a>
-                    <p class="text-xs text-slate-400">
-                        © {{ date('Y') }} NavistFind • All rights reserved.
-                    </p>
+
+                <div class="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/15 pt-6 text-xs text-white/70">
+                    <p>© {{ date('Y') }} NavistFind • All rights reserved.</p>
+                    <div class="flex gap-6">
+                        <a href="#home" class="hover:text-white">Privacy</a>
+                        <a href="#home" class="hover:text-white">Terms</a>
+                        <a href="mailto:{{ $supportEmail }}" class="hover:text-white">Contact</a>
+                    </div>
                 </div>
             </div>
         </footer>

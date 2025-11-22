@@ -12,11 +12,14 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\RoleMiddleware;
 use App\Models\User;
+use App\Models\FoundItem;
+use App\Enums\FoundItemStatus;
 
 Route::get('/', function () {
     $activeStudentCount = User::where('role', 'student')->count();
+    $resolvedPickupCount = FoundItem::where('status', FoundItemStatus::COLLECTED->value)->count();
 
-    return view('welcome', compact('activeStudentCount'));
+    return view('welcome', compact('activeStudentCount', 'resolvedPickupCount'));
 });
 
 Route::middleware('guest')->group(function () {

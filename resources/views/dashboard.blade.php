@@ -247,7 +247,7 @@
                 </div>
             </div>
 
-            <div class="flex flex-col gap-6">
+            <div class="flex flex-col gap-6 h-full">
                 {{-- Item Status Chart --}}
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                     <h2 class="text-lg font-bold text-[#123A7D] mb-3">Item Status</h2>
@@ -256,7 +256,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6" id="claim-conflicts-card">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex-1 flex flex-col" id="claim-conflicts-card">
                     <div class="flex items-center justify-between">
                         <div>
                             <h2 class="text-xl font-bold text-[#123A7D]">Claim Conflicts</h2>
@@ -271,26 +271,26 @@
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100" data-conflict-total>{{ $claimConflictStats['total'] ?? 0 }}</span>
                     </div>
 
-                    <div class="mt-4 {{ ($claimConflictStats['total'] ?? 0) === 0 ? '' : 'hidden' }}" data-conflict-empty>
-                        <div class="flex items-center gap-3 text-sm text-gray-500">
+                    <div class="mt-4 flex-1 flex flex-col">
+                        <div class="{{ ($claimConflictStats['total'] ?? 0) === 0 ? '' : 'hidden' }} flex-1 flex items-center justify-center text-sm text-gray-500" data-conflict-empty>
                             <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            <span>All clear. No conflicting claims right now.</span>
+                            <span class="ml-3">All clear. No conflicting claims right now.</span>
                         </div>
-                    </div>
 
-                    <div class="mt-4 {{ ($claimConflictStats['total'] ?? 0) === 0 ? 'hidden' : '' }}" data-conflict-content>
-                        <div class="space-y-2 overflow-y-auto" style="max-height: 140px;" data-conflict-list>
-                            @forelse(collect($claimConflictStats['hotlist'] ?? []) as $item)
-                                <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                                    <div class="min-w-0 flex-1 pr-3">
-                                        <p class="text-sm font-bold text-gray-900 truncate">{{ $item['title'] }}</p>
-                                        <p class="text-xs text-gray-500 mt-0.5">{{ $item['category'] }} • {{ $item['ageHuman'] }}</p>
+                        <div class="{{ ($claimConflictStats['total'] ?? 0) === 0 ? 'hidden' : '' }} flex-1 flex flex-col" data-conflict-content>
+                            <div class="space-y-2 overflow-y-auto flex-1" data-conflict-list>
+                                @forelse(collect($claimConflictStats['hotlist'] ?? []) as $item)
+                                    <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                                        <div class="min-w-0 flex-1 pr-3">
+                                            <p class="text-sm font-bold text-gray-900 truncate">{{ $item['title'] }}</p>
+                                            <p class="text-xs text-gray-500 mt-0.5">{{ $item['category'] }} • {{ $item['ageHuman'] }}</p>
+                                        </div>
+                                        <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-3 py-1.5 whitespace-nowrap flex-shrink-0">{{ $item['totalClaims'] }} claims</span>
                                     </div>
-                                    <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-3 py-1.5 whitespace-nowrap flex-shrink-0">{{ $item['totalClaims'] }} claims</span>
-                                </div>
-                            @empty
-                                <p class="text-xs text-gray-500 text-center py-4">Top conflict items will appear here.</p>
-                            @endforelse
+                                @empty
+                                    <p class="text-xs text-gray-500 text-center py-4">Top conflict items will appear here.</p>
+                                @endforelse
+                            </div>
                         </div>
                     </div>
                 </div>

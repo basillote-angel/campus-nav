@@ -35,7 +35,9 @@ class RecommendationController extends Controller
                 return response()->json([], 200);
             }
 
-            $candidateFound = FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)
+            $candidateFound = FoundItem::query()
+                ->select(['id', 'title', 'description', 'category_id', 'location', 'image_path', 'date_found', 'updated_at'])
+                ->where('status', FoundItemStatus::FOUND_UNCLAIMED->value)
                 ->latest('created_at')
                 ->limit((int) env('AI_CANDIDATE_LIMIT', 200))
                 ->get();
@@ -43,6 +45,8 @@ class RecommendationController extends Controller
             if ($candidateFound->isEmpty()) {
                 return response()->json([], 200);
             }
+
+            $candidateMap = $candidateFound->keyBy('id');
 
             $aggregated = [];
             foreach ($lostItems as $lost) {
@@ -55,7 +59,7 @@ class RecommendationController extends Controller
                     $id = $itm->id;
                     if (!isset($aggregated[$id]) || $aggregated[$id]['score'] < $score) {
                         $aggregated[$id] = [
-                            'item' => FoundItem::find($id),
+                            'item' => $candidateMap->get($id),
                             'score' => $score,
                         ];
                     }

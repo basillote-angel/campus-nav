@@ -18,6 +18,7 @@ use App\Services\DomainEventService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -454,10 +455,20 @@ class ItemController extends Controller
             }
 
             if ($itemType === 'lost') {
-                $candidateItems = FoundItem::where('status', FoundItemStatus::FOUND_UNCLAIMED->value)->get();
+                $candidateItems = FoundItem::query()
+                    ->select(['id', 'title', 'description', 'category_id', 'location', 'updated_at'])
+                    ->where('status', FoundItemStatus::FOUND_UNCLAIMED->value)
+                    ->latest('created_at')
+                    ->limit((int) env('AI_CANDIDATE_LIMIT', 200))
+                    ->get();
                 $matches = $aiService->matchLostAndFound($item, $candidateItems->all(), FoundItem::class);
             } else {
-                $candidateItems = LostItem::where('status', LostItemStatus::LOST_REPORTED->value)->get();
+                $candidateItems = LostItem::query()
+                    ->select(['id', 'title', 'description', 'category_id', 'location', 'updated_at'])
+                    ->where('status', LostItemStatus::LOST_REPORTED->value)
+                    ->latest('created_at')
+                    ->limit((int) env('AI_CANDIDATE_LIMIT', 200))
+                    ->get();
                 $matches = $aiService->matchLostAndFound($item, $candidateItems->all(), LostItem::class);
             }
 
@@ -541,70 +552,160 @@ class ItemController extends Controller
         }
     }
 
-    /**
-     * Student submits a claim for a found item.
-     */
-    public function claim(Request $request, $id)
-    {
-        try {
-            $user = Auth::user();
-            if (!$user) {
-                return response()->json(['message' => 'Unauthorized'], 401);
-            }
+	/**
+	 * Student submits a claim for a found item.
+	 */
+	public function claim(Request $request, $id)
+	{
+		try {
+			$user = Auth::user();
+			if (!$user) {
+				return response()->json(['message' => 'Unauthorized'], 401);
+			}
 
-            $request->validate([
-                'message' => 'required|string|max:2000',
-                'contactName' => 'nullable|string|max:255',
-                'contactInfo' => 'nullable|string|max:255',
-                'matchedLostItemId' => 'nullable|integer|exists:lost_items,id',
-            ]);
+			try {
+				$validated = $request->validate([
+					'message' => 'required|string|min:20|max:2000',
+					'contactName' => 'required_without:contactInfo|nullable|string|min:2|max:255',
+					'contactInfo' => 'required_without_all:email,phoneNumber|nullable|string|max:255',
+					'email' => 'required_without:contactInfo|nullable|email',
+					'phoneNumber' => 'required_without:contactInfo|nullable|string|min:10|max:32',
+					'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+					'matchedLostItemId' => 'nullable|integer|exists:lost_items,id',
+				]);
+			} catch (ValidationException $e) {
+				return response()->json([
+					'message' => 'Validation failed',
+					'errors' => $e->errors(),
+				], 422);
+			}
 
-            $item = FoundItem::with('category')->find($id);
-            if (!$item) {
-                return response()->json(['message' => 'Item not found'], 404);
-            }
+			$item = FoundItem::with('category')->find($id);
+			if (!$item) {
+				return response()->json(['message' => 'Item not found'], 404);
+			}
 
-		if (!in_array($item->status, [FoundItemStatus::FOUND_UNCLAIMED, FoundItemStatus::CLAIM_PENDING], true)) {
-			return response()->json(['message' => 'Item is not available to claim'], 422);
-		}
+			if (!in_array($item->status, [FoundItemStatus::FOUND_UNCLAIMED, FoundItemStatus::CLAIM_PENDING], true)) {
+				return response()->json(['message' => 'Item is not available to claim'], 422);
+			}
 
-		$hasActiveClaim = ClaimedItem::query()
-			->where('found_item_id', $item->id)
-			->where('claimant_id', $user->id)
-			->whereIn('status', [ClaimStatus::PENDING->value, ClaimStatus::APPROVED->value])
-			->exists();
+			$hasActiveClaim = ClaimedItem::query()
+				->where('found_item_id', $item->id)
+				->where('claimant_id', $user->id)
+				->whereIn('status', [ClaimStatus::PENDING->value, ClaimStatus::APPROVED->value])
+				->exists();
 
-		if ($hasActiveClaim) {
-			return response()->json(['message' => 'You already have an active claim for this item.'], 422);
-		}
+			if ($hasActiveClaim) {
+				return response()->json(['message' => 'You already have an active claim for this item.'], 422);
+			}
 
-		$contactName = $request->input('contactName');
-		$contactInfo = $request->input('contactInfo');
-		$matchedLostItemId = $request->input('matchedLostItemId');
-		$claimMessage = $request->input('message');
+			$contactName = $validated['contactName'] ?? $user->name;
+			$legacyContactInfo = $validated['contactInfo'] ?? null;
+			$email = $validated['email'] ?? null;
+			$phoneNumber = $validated['phoneNumber'] ?? null;
 
-		$meta = [
-			'hasMultipleClaims' => false,
-		];
+			if ($legacyContactInfo) {
+				if (!$email && filter_var($legacyContactInfo, FILTER_VALIDATE_EMAIL)) {
+					$email = $legacyContactInfo;
+				} elseif (!$phoneNumber) {
+					$phoneNumber = $legacyContactInfo;
+				}
+			}
 
-		if ($item->status === FoundItemStatus::CLAIM_PENDING && (int) $item->claimed_by !== (int) $user->id) {
-			$claim = ClaimedItem::create([
+			if (!$email && $user->email) {
+				$email = $user->email;
+			}
+
+			$legacyContactInfo = $this->buildLegacyContactInfo($email, $phoneNumber, $legacyContactInfo);
+			$imagePath = $this->storeClaimImage($request, $item->id, $user->id);
+
+			$matchedLostItemId = $validated['matchedLostItemId'] ?? null;
+			$claimMessage = $validated['message'];
+
+			$meta = [
+				'hasMultipleClaims' => false,
+			];
+
+			if ($item->status === FoundItemStatus::CLAIM_PENDING && (int) $item->claimed_by !== (int) $user->id) {
+				$claim = ClaimedItem::create([
+					'found_item_id' => $item->id,
+					'claimant_id' => $user->id,
+					'message' => $claimMessage,
+					'claimant_contact_name' => $contactName,
+					'claimant_contact_info' => $legacyContactInfo,
+					'claimant_email' => $email,
+					'claimant_phone' => $phoneNumber,
+					'claim_image' => $imagePath,
+					'matched_lost_item_id' => $matchedLostItemId,
+					'status' => ClaimStatus::PENDING->value,
+				]);
+
+				$this->dispatchClaimSubmittedEvent($claim, $item, $user);
+
+				$meta['hasMultipleClaims'] = true;
+				$meta['message'] = 'Your claim has been submitted. This item already has other pending claims.';
+				$meta['claimId'] = $claim->id;
+
+				$notification = \App\Services\NotificationMessageService::generate('claimSubmitted', [
+					'item_title' => $item->title,
+					'user_name' => $user->name,
+				]);
+				SendNotificationJob::dispatch(
+					$user->id,
+					$notification['title'],
+					$notification['body'],
+					'claimSubmitted',
+					$claim->id
+				);
+
+				$admins = \App\Models\User::where('role', 'admin')->get();
+				foreach ($admins as $admin) {
+					$notification = \App\Services\NotificationMessageService::generate('multipleClaims', [
+						'item_title' => $item->title,
+					]);
+					SendNotificationJob::dispatch(
+						$admin->id,
+						$notification['title'],
+						$notification['body'],
+						'multipleClaims',
+						$item->id
+					);
+				}
+
+				$item->refresh();
+				$this->loadItemRelations($item);
+
+				return $this->respondWithItemResource($item, 200, $meta);
+			}
+
+			$item->claimed_by = $user->id;
+			$item->claim_message = $claimMessage;
+			$item->claimant_contact_name = $contactName;
+			$item->claimant_contact_info = $legacyContactInfo;
+			$item->claimant_email = $email;
+			$item->claimant_phone = $phoneNumber;
+			$item->claim_image = $imagePath;
+			$item->markClaimPending(now());
+			$item->save();
+
+			$claimRecord = ClaimedItem::create([
 				'found_item_id' => $item->id,
 				'claimant_id' => $user->id,
 				'message' => $claimMessage,
 				'claimant_contact_name' => $contactName,
-				'claimant_contact_info' => $contactInfo,
+				'claimant_contact_info' => $legacyContactInfo,
+				'claimant_email' => $email,
+				'claimant_phone' => $phoneNumber,
+				'claim_image' => $imagePath,
 				'matched_lost_item_id' => $matchedLostItemId,
 				'status' => ClaimStatus::PENDING->value,
 			]);
 
-			$this->dispatchClaimSubmittedEvent($claim, $item, $user);
+			$this->dispatchClaimSubmittedEvent($claimRecord, $item, $user);
 
-			$meta['hasMultipleClaims'] = true;
-			$meta['message'] = 'Your claim has been submitted. This item already has other pending claims.';
-			$meta['claimId'] = $claim->id;
+			$meta['claimId'] = $claimRecord->id;
+			$meta['message'] = 'Claim submitted. Admin will review shortly.';
 
-			// Notify claimant that their claim was submitted
 			$notification = \App\Services\NotificationMessageService::generate('claimSubmitted', [
 				'item_title' => $item->title,
 				'user_name' => $user->name,
@@ -614,19 +715,30 @@ class ItemController extends Controller
 				$notification['title'],
 				$notification['body'],
 				'claimSubmitted',
-				$claim->id
+				$claimRecord->id
 			);
 
 			$admins = \App\Models\User::where('role', 'admin')->get();
+			$claimMessagePreview = strlen($item->claim_message) > 100
+				? substr($item->claim_message, 0, 100) . '...'
+				: $item->claim_message;
+
+			$categoryName = $item->category ? $item->category->name : 'Unknown';
+
 			foreach ($admins as $admin) {
-				$notification = \App\Services\NotificationMessageService::generate('multipleClaims', [
+				$notification = \App\Services\NotificationMessageService::generate('newClaim', [
 					'item_title' => $item->title,
+					'claimant_name' => $user->name,
+					'claimant_email' => $email,
+					'category' => $categoryName,
+					'location' => $item->location,
+					'message_preview' => $claimMessagePreview,
 				]);
 				SendNotificationJob::dispatch(
 					$admin->id,
 					$notification['title'],
 					$notification['body'],
-					'multipleClaims',
+					'newClaim',
 					$item->id
 				);
 			}
@@ -635,76 +747,10 @@ class ItemController extends Controller
 			$this->loadItemRelations($item);
 
 			return $this->respondWithItemResource($item, 200, $meta);
+		} catch (\Exception $e) {
+			return response()->json(['error' => 'Failed to submit claim', 'message' => $e->getMessage()], 500);
 		}
-
-		$item->claimed_by = $user->id;
-		$item->claim_message = $claimMessage;
-		$item->claimant_contact_name = $contactName;
-		$item->claimant_contact_info = $contactInfo;
-		$item->markClaimPending(now());
-		$item->save();
-
-		$claimRecord = ClaimedItem::create([
-			'found_item_id' => $item->id,
-			'claimant_id' => $user->id,
-			'message' => $claimMessage,
-			'claimant_contact_name' => $contactName,
-			'claimant_contact_info' => $contactInfo,
-			'matched_lost_item_id' => $matchedLostItemId,
-			'status' => ClaimStatus::PENDING->value,
-		]);
-
-		$this->dispatchClaimSubmittedEvent($claimRecord, $item, $user);
-
-		$meta['claimId'] = $claimRecord->id;
-		$meta['message'] = 'Claim submitted. Admin will review shortly.';
-
-		// Notify claimant that their claim was submitted
-		$notification = \App\Services\NotificationMessageService::generate('claimSubmitted', [
-			'item_title' => $item->title,
-			'user_name' => $user->name,
-		]);
-		SendNotificationJob::dispatch(
-			$user->id,
-			$notification['title'],
-			$notification['body'],
-			'claimSubmitted',
-			$claimRecord->id
-		);
-
-		$admins = \App\Models\User::where('role', 'admin')->get();
-		$claimMessagePreview = strlen($item->claim_message) > 100
-			? substr($item->claim_message, 0, 100) . '...'
-			: $item->claim_message;
-
-		$categoryName = $item->category ? $item->category->name : 'Unknown';
-
-		foreach ($admins as $admin) {
-			$notification = \App\Services\NotificationMessageService::generate('newClaim', [
-				'item_title' => $item->title,
-				'claimant_name' => $user->name,
-				'claimant_email' => $user->email,
-				'category' => $categoryName,
-				'location' => $item->location,
-				'message_preview' => $claimMessagePreview,
-			]);
-			SendNotificationJob::dispatch(
-				$admin->id,
-				$notification['title'],
-				$notification['body'],
-				'newClaim',
-				$item->id
-			);
-		}
-
-		$item->refresh();
-		$this->loadItemRelations($item);
-
-		return $this->respondWithItemResource($item, 200, $meta);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to submit claim', 'message' => $e->getMessage()], 500);
-        }
-    }
+	}
 
     /**
      * Admin/Staff: enqueue AI matching for a specific item id.
@@ -968,6 +1014,38 @@ class ItemController extends Controller
 		} else {
 			$item->loadMissing(['category', 'transitionLogs.user']);
 		}
+	}
+
+	private function buildLegacyContactInfo(?string $email, ?string $phone, ?string $fallback = null): ?string
+	{
+		if ($fallback) {
+			return $fallback;
+		}
+
+		$parts = [];
+
+		if ($email) {
+			$parts[] = "Email: {$email}";
+		}
+
+		if ($phone) {
+			$parts[] = "Phone: {$phone}";
+		}
+
+		return !empty($parts) ? implode(' | ', $parts) : null;
+	}
+
+	private function storeClaimImage(Request $request, int $itemId, int $userId): ?string
+	{
+		if (!$request->hasFile('image')) {
+			return null;
+		}
+
+		$image = $request->file('image');
+		$extension = $image->getClientOriginalExtension();
+		$fileName = sprintf('%s_%s_%s.%s', now()->timestamp, $itemId, $userId, $extension);
+
+		return $image->storeAs('claim_images', $fileName, 'public');
 	}
 
 	private function dispatchClaimSubmittedEvent(\App\Models\ClaimedItem $claim, FoundItem $item, $claimant): void

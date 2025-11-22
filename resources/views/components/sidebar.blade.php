@@ -97,7 +97,7 @@
                         @endif
                     </a>
 
-                    <!-- Campus Navigation -->
+                    <!-- Campus Navigation
                     <a 
                         href="{{ route('campus-map') }}" 
                         class="nav-item group flex items-center px-3 py-3 rounded-xl transition-all duration-200 relative {{ request()->routeIs('campus-map') ? 'bg-gradient-to-r from-[#123A7D]/10 to-[#123A7D]/5 text-[#123A7D] font-semibold shadow-sm' : 'text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-50/50' }}"
@@ -112,7 +112,7 @@
                         @if(request()->routeIs('campus-map'))
                             <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-gradient-to-b from-[#123A7D] to-[#10316A] rounded-r-full {{ $isCollapsed ? 'hidden' : '' }} shadow-sm"></div>
                         @endif
-                    </a>
+                    </a> -->
 
                     <!-- Lost & Found -->
                     <a 
@@ -251,7 +251,7 @@
         </div>
 
         <!-- Logout Button -->
-        <form method="POST" action="{{ route('logout') }}">
+        <form method="POST" action="{{ route('logout') }}" onsubmit="return confirmLogout(event)">
             @csrf
             <button 
                 type="submit" 
@@ -684,4 +684,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function confirmLogout(event) {
+    const isConfirmed = window.confirm('Are you sure you want to log out?');
+
+    if (!isConfirmed) {
+        event.preventDefault();
+        return false;
+    }
+
+    return true;
+}
 </script>

@@ -1,4 +1,7 @@
 @extends('layouts.app')
+@php
+    use Illuminate\Support\Facades\Storage;
+@endphp
 
 @section('content')
 {{-- 
@@ -284,6 +287,7 @@
                                 @endif
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Item</th>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Claimant</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Evidence</th>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Message</th>
                                 <th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Dates</th>
                             </tr>
@@ -300,9 +304,12 @@
                                         'status' => $item->status,
                                         'claimMessage' => $item->claim_message,
                                         'claimantName' => optional($item->claimedBy)->name ?? 'Unknown',
-                                        'claimantEmail' => optional($item->claimedBy)->email,
+                                        'claimantEmail' => $item->claimant_email ?? optional($item->claimedBy)->email,
+                                        'claimantPhone' => $item->claimant_phone,
                                         'claimantContactName' => $item->claimant_contact_name,
                                         'claimantContactInfo' => $item->claimant_contact_info,
+                                        'claimImagePath' => $item->claim_image,
+                                        'claimImageUrl' => $item->claim_image ? Storage::disk('public')->url($item->claim_image) : null,
                                         'claimedAt' => optional($item->claimed_at)->toDateTimeString(),
                                         'approvedAt' => optional($item->approved_at)->toDateTimeString(),
                                         'rejectedAt' => optional($item->rejected_at)->toDateTimeString(),
@@ -409,6 +416,29 @@
                                             <div class="text-sm font-medium text-gray-900 truncate max-w-xs" title="{{ $item->claimedBy->name }}">
                                                 {{ $item->claimedBy->name }}
                                             </div>
+                                        @else
+                                            <span class="text-xs text-gray-400">—</span>
+                                        @endif
+                                    </td>
+
+                                    {{-- Evidence Column --}}
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        @if($item->claim_image)
+                                            @php
+                                                $claimImageUrl = Storage::disk('public')->url($item->claim_image);
+                                            @endphp
+                                            <button 
+                                                type="button"
+                                                class="inline-block w-16 group text-center"
+                                                onclick="event.stopPropagation(); showEvidenceModal('{{ $claimImageUrl }}', 'Evidence for {{ addslashes($item->title) }}')"
+                                            >
+                                                <img 
+                                                    src="{{ $claimImageUrl }}" 
+                                                    alt="Claim evidence for {{ $item->title }}" 
+                                                    class="w-16 h-12 object-cover rounded-md border border-gray-200 shadow-sm group-hover:shadow-md transition-shadow duration-200"
+                                                >
+                                                <span class="mt-1 block text-[9px] text-gray-500 group-hover:text-gray-700">Preview</span>
+                                            </button>
                                         @else
                                             <span class="text-xs text-gray-400">—</span>
                                         @endif
@@ -525,6 +555,35 @@
 </div>
 
 {{-- JavaScript for Filter Toggle and Modal Management --}}
+<div 
+    id="evidence-modal" 
+    class="hidden fixed inset-0 z-[11000] bg-black/70 backdrop-blur-sm items-center justify-center p-4"
+    onclick="closeEvidenceModal(event)"
+>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-200 bg-gray-50">
+            <h3 class="text-sm sm:text-base font-semibold text-gray-800" id="evidence-modal-title">Evidence Photo</h3>
+            <button 
+                type="button" 
+                class="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-200/80 transition-colors"
+                onclick="closeEvidenceModal()"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="flex-1 bg-black/5 flex items-center justify-center p-4">
+            <img 
+                id="evidence-modal-image" 
+                src="" 
+                alt="Evidence" 
+                class="max-h-full max-w-full rounded-xl border border-white shadow-lg object-contain bg-white"
+            >
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     // Toggle filter collapse
@@ -897,29 +956,15 @@
                         ${claims.map((entry, index) => `
                             <div class="relative border-2 ${index === 0 ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50/30' : 'border-gray-200 bg-white'} rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col">
                                 <div class="flex-1 space-y-4">
-                                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-start gap-3">
-                                                <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-sm">
-                                                    <span class="text-white text-sm font-semibold">${escapeHtml(entry.claimantName).charAt(0).toUpperCase()}</span>
-                                                </div>
-                                                <div class="flex-1 min-w-0">
-                                                    <h4 class="text-sm sm:text-base font-semibold text-gray-900 truncate">${escapeHtml(entry.claimantName)}</h4>
-                                                    ${entry.claimantEmail ? `
-                                                        <div class="flex items-center gap-1.5 mt-1">
-                                                            <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                                                            </svg>
-                                                            <p class="text-xs sm:text-sm text-gray-600 truncate">${escapeHtml(entry.claimantEmail)}</p>
-                                                        </div>
-                                                    ` : ''}
-                                                    <div class="flex items-center gap-2 mt-2">
-                                                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                                        </svg>
-                                                        <p class="text-xs text-gray-500">Submitted ${formatDateTime(entry.createdAt)}</p>
-                                                    </div>
-                                                </div>
+                                    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                                        <div class="flex items-start gap-3 flex-1 min-w-0">
+                                            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-sm">
+                                                <span class="text-white text-sm font-semibold">${escapeHtml(entry.claimantName).charAt(0).toUpperCase()}</span>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <h4 class="text-sm sm:text-base font-semibold text-gray-900 truncate">${escapeHtml(entry.claimantName)}</h4>
+                                                <p class="text-xs text-gray-500 mt-0.5">Submitted ${formatDateTime(entry.createdAt)}</p>
+                                                ${entry.claimantEmail ? `<p class="text-xs text-gray-500 truncate mt-1">${escapeHtml(entry.claimantEmail)}</p>` : ''}
                                             </div>
                                         </div>
                                         ${entry.similarity ? `
@@ -934,38 +979,50 @@
                                         ` : ''}
                                     </div>
 
-                                    ${entry.contactName || entry.contactInfo ? `
-                                        <div class="pt-3 border-t border-gray-200">
-                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                ${entry.contactName ? `
-                                                    <div class="flex items-start gap-2">
-                                                        <svg class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                                        </svg>
-                                                        <div class="flex-1 min-w-0">
-                                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Contact Name</p>
-                                                            <p class="text-sm font-medium text-gray-900">${escapeHtml(entry.contactName)}</p>
-                                                        </div>
-                                                    </div>
-                                                ` : ''}
-                                                ${entry.contactInfo ? `
-                                                    <div class="flex items-start gap-2">
-                                                        <svg class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
-                                                        </svg>
-                                                        <div class="flex-1 min-w-0">
-                                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Contact Info</p>
-                                                            <p class="text-sm font-medium text-gray-900 break-words">${escapeHtml(entry.contactInfo)}</p>
-                                                        </div>
-                                                    </div>
-                                                ` : ''}
-                                            </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div class="space-y-2">
+                                            ${entry.contactName ? `
+                                                <div>
+                                                    <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Contact Name</p>
+                                                    <p class="text-sm text-gray-900">${escapeHtml(entry.contactName)}</p>
+                                                </div>
+                                            ` : ''}
+                                            ${(entry.contactEmail || entry.contactInfo) ? `
+                                                <div>
+                                                    <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Email</p>
+                                                    <p class="text-sm text-gray-900 break-words">${escapeHtml(entry.contactEmail || entry.contactInfo)}</p>
+                                                </div>
+                                            ` : ''}
+                                            ${entry.contactPhone ? `
+                                                <div>
+                                                    <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Phone</p>
+                                                    <p class="text-sm text-gray-900 break-words">${escapeHtml(entry.contactPhone)}</p>
+                                                </div>
+                                            ` : ''}
                                         </div>
-                                    ` : ''}
+                                        <div class="flex items-center justify-center">
+                                            ${entry.imageUrl ? `
+                                                <button 
+                                                    type="button"
+                                                    class="group w-full sm:max-w-xs text-left"
+                                                    onclick="showEvidenceModal('${entry.imageUrl}', 'Evidence from ${escapeHtml(entry.claimantName)}')"
+                                                >
+                                                    <div class="relative h-36 w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm group-hover:shadow-md transition-all duration-200">
+                                                        <img src="${entry.imageUrl}" alt="Claim evidence" class="w-full h-full object-cover">
+                                                        <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold tracking-wide">
+                                                            Preview evidence
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ` : `
+                                                <span class="text-xs text-gray-400">No evidence</span>
+                                            `}
+                                        </div>
+                                    </div>
 
                                     ${entry.message ? `
                                         <div class="pt-3 border-t border-gray-200">
-                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                            <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
                                                 </svg>
@@ -1201,76 +1258,72 @@
         `;
 
         const claimantCardHtml = claim.claimantName ? `
-            <div class="bg-white border-2 border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
-                <div class="flex items-center gap-3 mb-4 sm:mb-6">
-                    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-sm">
-                        <span class="text-white text-lg font-semibold">${escapeHtml(claim.claimantName).charAt(0).toUpperCase()}</span>
+            <div class="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 text-white font-semibold text-lg">
+                            ${escapeHtml(claim.claimantName).charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <h3 class="text-base sm:text-lg font-semibold text-gray-900">${escapeHtml(claim.claimantName)}</h3>
+                            ${claim.claimedAt ? `<p class="text-xs text-gray-500">${formatSubmittedDate(claim.claimedAt)}</p>` : ''}
+                        </div>
                     </div>
-                    <div class="flex-1 min-w-0">
-                        <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-1">Claimant Information</h3>
-                        ${claim.claimantEmail ? `
-                            <div class="flex items-center gap-1.5">
-                                <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                                </svg>
-                                <p class="text-xs sm:text-sm text-gray-600 truncate">${escapeHtml(claim.claimantEmail)}</p>
+                    ${claim.claimantEmail ? `<p class="text-xs text-gray-500 truncate sm:text-right">${escapeHtml(claim.claimantEmail)}</p>` : ''}
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                        ${claim.claimantContactName ? `
+                            <div>
+                                <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Contact Name</p>
+                                <p class="text-sm text-gray-900">${escapeHtml(claim.claimantContactName)}</p>
                             </div>
                         ` : ''}
-                        ${(claim.tab === 'approved' || claim.tab === 'collected') && claim.claimedAt ? `
-                            <div class="flex items-center gap-1.5 mt-2">
-                                <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                <p class="text-xs sm:text-sm text-gray-600">${formatSubmittedDate(claim.claimedAt)}</p>
+                        ${(claim.claimantEmail || claim.claimantContactInfo) ? `
+                            <div>
+                                <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Email</p>
+                                <p class="text-sm text-gray-900 break-words">${escapeHtml(claim.claimantEmail || claim.claimantContactInfo)}</p>
+                            </div>
+                        ` : ''}
+                        ${claim.claimantPhone ? `
+                            <div>
+                                <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Phone</p>
+                                <p class="text-sm text-gray-900 break-words">${escapeHtml(claim.claimantPhone)}</p>
                             </div>
                         ` : ''}
                     </div>
-                </div>
-                <div class="space-y-4 sm:space-y-5">
-                    ${(claim.claimantContactName || claim.claimantContactInfo) ? `
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 pt-4 border-t border-gray-200">
-                            ${claim.claimantContactName ? `
-                                <div class="flex items-start gap-2.5">
-                                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Contact Name</label>
-                                        <p class="text-sm sm:text-base text-gray-900 font-medium">${escapeHtml(claim.claimantContactName)}</p>
+                    <div class="flex items-center justify-center">
+                        ${claim.claimImageUrl ? `
+                            <button 
+                                type="button"
+                                class="group w-full"
+                                onclick="showEvidenceModal('${claim.claimImageUrl}', 'Evidence from ${escapeHtml(claim.claimantName)}')"
+                            >
+                                <div class="relative h-40 w-full rounded-xl overflow-hidden border border-gray-100 shadow-sm group-hover:shadow-md transition-all duration-200">
+                                    <img src="${claim.claimImageUrl}" alt="Claim evidence photo" class="w-full h-full object-cover">
+                                    <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-sm font-semibold tracking-wide">
+                                        View evidence
                                     </div>
                                 </div>
-                            ` : ''}
-                            ${claim.claimantContactInfo ? `
-                                <div class="flex items-start gap-2.5">
-                                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Contact Information</label>
-                                        <p class="text-sm sm:text-base text-gray-900 font-medium break-words">${escapeHtml(claim.claimantContactInfo)}</p>
-                                    </div>
-                                </div>
-                            ` : ''}
-                        </div>
-                    ` : ''}
-                    ${claim.claimMessage ? `
-                        <div class="pt-4 border-t border-gray-200">
-                            <div class="flex items-center gap-2 mb-2.5">
-                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
-                                </svg>
-                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Claim Message</label>
-                            </div>
-                            <div class="bg-gray-50 rounded-lg p-4 sm:p-5 border border-gray-200">
-                                <p class="text-sm sm:text-base text-gray-700 whitespace-pre-wrap leading-relaxed">${escapeHtml(claim.claimMessage)}</p>
-                            </div>
-                        </div>
-                    ` : ''}
+                            </button>
+                        ` : `
+                            <div class="text-xs text-gray-400 text-center w-full">No evidence uploaded</div>
+                        `}
+                    </div>
                 </div>
+                ${claim.claimMessage ? `
+                    <div class="space-y-2 border-t border-gray-100 pt-3">
+                        <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                            </svg>
+                            Claim Message
+                        </p>
+                        <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                            <p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">${escapeHtml(claim.claimMessage)}</p>
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         ` : '';
 
@@ -1508,6 +1561,51 @@
         });
     }
 
+    function showEvidenceModal(url, title = 'Evidence Photo') {
+        const modal = document.getElementById('evidence-modal');
+        const image = document.getElementById('evidence-modal-image');
+        const heading = document.getElementById('evidence-modal-title');
+
+        if (!modal || !image) {
+            return;
+        }
+
+        image.src = url || '';
+        image.alt = title || 'Evidence Photo';
+        if (heading) {
+            heading.textContent = title || 'Evidence Photo';
+        }
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeEvidenceModal(event) {
+        if (event && event.type !== 'keydown' && event.target && event.currentTarget && event.target !== event.currentTarget) {
+            return;
+        }
+
+        const modal = document.getElementById('evidence-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        if (!document.getElementById('claimDetailModal')) {
+            document.body.style.overflow = '';
+        }
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            const modal = document.getElementById('evidence-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                closeEvidenceModal(event);
+            }
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
         attachMarkCollectedHandlers();
     });
@@ -1547,3 +1645,4 @@
 @endpush
 
 @endsection
+

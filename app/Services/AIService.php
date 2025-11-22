@@ -30,12 +30,28 @@ class AIService
     $timeout = (int) env('AI_HTTP_TIMEOUT', 5);
     $retries = (int) env('AI_HTTP_RETRIES', 1);
 
+    $candidateMap = collect($candidateItems)
+      ->filter(fn ($model) => $model instanceof Model)
+      ->keyBy(fn (Model $model) => $model->getKey());
+
+    $payloadCandidates = $candidateMap
+      ->values()
+      ->map(fn (Model $model) => $model->only([
+        'id',
+        'title',
+        'description',
+        'category_id',
+        'location',
+        'updated_at',
+      ]))
+      ->all();
+
     $response = Http::withHeaders([
       'Authorization' => 'Bearer ' . $this->apiKey,
       'Content-Type' => 'application/json',
     ])->timeout($timeout)->retry($retries, 200)->post($this->baseUrl . '/v1/match-items', [
       'reference_item' => $referenceItem,
-      'candidate_items' => $candidateItems,
+      'candidate_items' => $payloadCandidates,
       'top_k' => $this->topK,
       'threshold' => $this->threshold,
     ]);
@@ -47,7 +63,7 @@ class AIService
       if($data['matched_items'] && count($data['matched_items']) > 0) {
         foreach ($data['matched_items'] as $item) {
           $matchedItems[] = [
-            'item' => $candidateModelClass::query()->find($item['id']),
+            'item' => $candidateMap->get($item['id']),
             'score' => $item['score'] ?? null,
           ];
         }
@@ -70,12 +86,28 @@ class AIService
     $timeout = (int) env('AI_HTTP_TIMEOUT', 5);
     $retries = (int) env('AI_HTTP_RETRIES', 1);
 
+    $candidateMap = collect($candidateItems)
+      ->filter(fn ($model) => $model instanceof Model)
+      ->keyBy(fn (Model $model) => $model->getKey());
+
+    $payloadCandidates = $candidateMap
+      ->values()
+      ->map(fn (Model $model) => $model->only([
+        'id',
+        'title',
+        'description',
+        'category_id',
+        'location',
+        'updated_at',
+      ]))
+      ->all();
+
     $response = Http::withHeaders([
       'Authorization' => 'Bearer ' . $this->apiKey,
       'Content-Type' => 'application/json',
     ])->timeout($timeout)->retry($retries, 200)->post($this->baseUrl . '/v1/match-items/best', [
       'reference_item' => $referenceItem,
-      'candidate_items' => $candidateItems,
+      'candidate_items' => $payloadCandidates,
       'top_k' => $this->topK,
       'threshold' => $this->threshold,
     ]);
@@ -87,12 +119,12 @@ class AIService
       $lowerBest = $data['lower_best'] ?? null;
 
       $highestBestItem = $highestBest ? [
-        'item' => $candidateModelClass::query()->find($highestBest['id']),
+        'item' => $candidateMap->get($highestBest['id']),
         'score' => $highestBest['score'] ?? null,
       ] : null;
 
       $lowerBestItem = $lowerBest ? [
-        'item' => $candidateModelClass::query()->find($lowerBest['id']),
+        'item' => $candidateMap->get($lowerBest['id']),
         'score' => $lowerBest['score'] ?? null,
       ] : null;
 

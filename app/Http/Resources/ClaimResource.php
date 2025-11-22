@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\ClaimStatus;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ClaimResource extends JsonResource
 {
@@ -25,6 +26,12 @@ class ClaimResource extends JsonResource
 			'contact' => [
 				'name' => $this->claimant_contact_name,
 				'info' => $this->claimant_contact_info,
+				'email' => $this->claimant_email,
+				'phone' => $this->claimant_phone,
+			],
+			'image' => [
+				'path' => $this->claim_image,
+				'url' => $this->claim_image ? Storage::disk('public')->url($this->claim_image) : null,
 			],
 			'approved_by' => $this->approved_by,
 			'approved_at' => optional($this->approved_at)->toIso8601String(),
